@@ -52,6 +52,6 @@ saved to an auxillary file for later examination and study.
 To perform the parsing of the binary byte stream, the following Finite
 State Machine (FSM) is used.
 
-![LIF Finite State Machine Parser](docs/parser-FSM.png)
+![LIF Finite State Machine Parser](docs/parser-FSM.png?raw=true)
 
 Some more text here.
