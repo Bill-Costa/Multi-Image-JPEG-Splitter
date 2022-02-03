@@ -3,9 +3,14 @@
 ## Purpose ##
 
 Splits a Leia Image Format (LIF) 3D image file into four separate JPEG
-files (Left, Right, and 2 depth maps)
+files (Left, Right, and 2 depth maps).
 
 ## Usage and Example ##
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+
+## Installation ##
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
 eiusmod tempor incididunt ut labore et dolore magna aliqua. 
@@ -32,3 +37,14 @@ such as
 [JPS](https://en.wikipedia.org/wiki/JPEG#JPEG_Stereoscopic), or as a
 conventional side-by-side format in a JPG file.  For these formats the
 corresponding depth map images are not needed.
+
+## Features ##
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+## Programming Notes ##
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
