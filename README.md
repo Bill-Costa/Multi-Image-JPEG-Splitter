@@ -7,13 +7,11 @@ files (Left, Right, and 2 depth maps).
 
 ## Usage and Example ##
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+To Be Determined; 3-FEB-2022
 
 ## Installation ##
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-eiusmod tempor incididunt ut labore et dolore magna aliqua. 
+To Be Determined; 3-FEB-2022
 
 ## Background ##
 
@@ -40,11 +38,20 @@ corresponding depth map images are not needed.
 
 ## Features ##
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-eiusmod tempor incididunt ut labore et dolore magna aliqua.
+To Do; 3-FEB-2022
 
 ## Programming Notes ##
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-eiusmod tempor incididunt ut labore et dolore magna aliqua.
+This program takes a somewhat naive approach in that it doesn't try to
+understand the proprietary LIF format beyond that fact that complete
+JPEG images can be found bracked by unique two character tags that
+indicated the start-of-image (SOI) and end-of-image (EOI).  Any data
+found between these image segments is discarded or can be optionally
+saved to an auxillary file for later examination and study.
 
+To perform the parsing of the binary byte stream, the following Finite
+State Machine (FSM) is used.
+
+![LIF Finite State Machine Parser]()
+
+Some more text here.
