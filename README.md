@@ -40,6 +40,12 @@ corresponding depth map images are not needed.
 
 To Do; 3-FEB-2022
 
+## Program Limitations ##
+
+For parsing convenience, we slurp the entire file into memory, but
+only if it is not larger than a preset maximum to prevent a runaway
+process.
+
 ## Programming Notes ##
 
 This program takes a somewhat naive approach in that it doesn't try to
@@ -54,4 +60,48 @@ State Machine (FSM) is used.
 
 ![LIF Finite State Machine Parser](docs/parser-FSM.png?raw=true)
 
-Some more text here.
+The above model can also be represented as a transition table.  Find
+the current state at the top or the table; read down to find which
+condition matches the current input character.  For example `IN: ! D8`
+means if the current input character is not the `0xD8` character.  If
+the input matches, perform the action described and read to the right
+for the next state.
+
+Q1 is the unique initial starting state.  Q1 and Q5 are the only
+expected halting states.  In particular end of data while in Q3 or
+Q4 is an error (truncated image).
+
+`````text
++----------+------------+----------+----------+----------+
+| Q1       | Q2         | Q3       | Q4       | Q5       |
+| not      | start      | in       | leave    | end      |
+| image    | image      | image    | image    | image    |
+==========================================================
+| IN: ! FF | IN: ! D8   |          |          | IN: ! FF |
+| - echo   | - echo FF  |          |          | - echo   | Q1
+|          | - echo     |          |          |          | not
+|          |            |          |          |          | image
++----------+------------+----------+----------+----------+
+| IN: FF   |            |          |          | IN: FF   |
+|          |            |          |          |          | Q2
+|          |            |          |          |          | start
+|          |            |          |          |          | image
++----------+------------+----------+----------+----------+
+|          | IN: DB     | IN: ! FF | IN: ! D9 |          |
+|          | - new file | - save   | - save   |          | Q3
+|          | - save FF  |          |          |          | in
+|          | - save     |          |          |          | image
++----------+------------+----------+----------+----------+
+|          |            | IN: FF   |          |          |
+|          |            | - save   |          |          | Q4
+|          |            |          |          |          | leave
+|          |            |          |          |          | image
++----------+------------+----------+----------+----------+
+|          |            |          | IN: D9   |          |
+|          |            |          | - save   |          | Q5
+|          |            |          | - close  |          | end
+|          |            |          |   file   |          | image
++----------+------------+----------+----------+----------+
+`````
+
+
