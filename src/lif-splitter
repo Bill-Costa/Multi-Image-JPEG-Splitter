@@ -1,0 +1,501 @@
+#!/usr/bin/env perl
+# -*- cperl -*-
+#
+#         File:	lif-splitter
+#      Summary:	Splits a Leia Image Format (LIF) 3D image file into L/R pair.
+#        Usage:	lif-splitter file1 [...]
+#	  Help:	lif-splitter -h
+#     Man Page:	lif-splitter -m
+#       Author:	Bill.Costa@alumni.unh.edu
+# Project Page:	https://github.com/Bill-Costa/Leia-Image-Format-Splitter
+#
+#=============================================================================
+
+use warnings;			# Warning me when I do something stupid.
+use strict;			# Keep things squeaky clean.
+use Data::Dumper;		# Easy data structure debugging.
+use Getopt::Long;		# Parse our command line please.
+use File::Basename;		# For parsing file names.
+use Pod::Usage;			# Easy usage text, help, and man page.
+use Data::Dumper;		# Handy for debuging data structures.
+#use Text::Abbrev;		# Allow keyword abbreviation.
+no autovivification;		# Allow hash key testing without auto creation.
+				#--[ Global Vars ]-----------------------------
+my $ownName = (fileparse	# Get our own name, that is, how we were
+                (		#   invoked, minus pathname and suffix.
+		  $0,
+		  qr/\.[^.]*/
+		)
+              )[0];
+
+my $discardBuf    = undef();	# If defined, non-image binary data
+my %opt           = ();		# Command line options.
+$opt{clobberMode} = 0;		# -clobber : overwrite existing file
+$opt{forceMode}   = 0;          # -force   : ignore file errors
+$opt{extraMode}   = 0;		# -extra   : non-image data to discard file
+$opt{allMode}     = 0;		# -all     : export all JPGs with ord naming
+$opt{whatIfMode}  = 0;		# -whatif  : echo action but change nothing
+$opt{quietMode}   = 0;		# -quiet   : suppress warning messages
+$opt{verboseMode} = 0;		# -verbose : show progress
+$opt{debugMode}   = undef();	# -debug   : undef or 0-9
+#$opt{saveasMode}  = 'pairs';	# -saveas  : one of 'pairs', 'jps', 'sbs'
+
+#==============================================================================
+#  Subroutines  ===============================================================
+#==============================================================================
+
+sub isMissing ( $ )
+
+#      Abstract: Returns true if scalar is undefined, empty, or blank string.
+#
+#    Parameters: $str -- simple char string or undefined
+#
+#       Returns: $bool -- true if there is no useful value
+#
+#  Precondition: None.
+#
+# Postcondition: Returns boolean value with no side effects.
+
+{
+  if (not defined($_[0]) or $_[0] =~ m/^\s*$/s) { return(1) }
+  else                                          { return(0) }
+}
+
+#------------------------------------------------------------------------------
+
+sub trimStr ( $ )
+
+#      Abstract: Remove leading and trailing whitespace.
+#
+#    Parameters: $str -- simple char string (no embedded carriage control)
+#
+#       Returns: $new -- the trimmed string value
+#
+#  Precondition: None.
+#
+# Postcondition: $str is returned with  leading and trailing blanks
+#		 removed.  If the string is all whitespace, or undefined,
+#		 we return an empty string.
+
+{
+  my $str = shift(@_);
+  return('') if (not defined($str));
+  $str =~ s/^\s+|\s+$//g;
+  return($str);
+}
+
+#------------------------------------------------------------------------------
+
+sub assert ( $ @ )
+
+#      Abstract: Throws fatal error if $boolExp is not true.
+#
+#    Parameters: $boolExp   -- a Perl expression to eval as Perlish T/F.
+#                $msgStr(s) -- one or more message strings to display on exit.
+#
+#       Returns: 1 (true) assuming we do not thrown a fatal error
+#
+#  Precondition: None.
+#
+# Postcondition: If the expression evaluates to a Perlish false value,
+#		 we throw a 'logic error' exception and display any
+#		 message strings provided and a stack trace.
+
+{
+  use Carp;			# Gives us confess() for stack backtrace,
+  $Carp::CarpLevel = 1;	# but don't report the assert() in backtrace.
+  my $boolExp = shift(@_);
+  $_[0] = '(no message)' if (not defined($_[0]));
+  if (not $boolExp)
+    {
+      $! = 255;
+      confess(
+	       "! $ownName: internal logic error\n",
+	       "_ ", join("\n_ ", @_), "\n_"
+	     );
+    }
+
+  return(1);
+}
+
+#------------------------------------------------------------------------------
+
+sub tellUser ( $ @ )
+
+#      Abstract: Conditionally print diagnostic to STDERR.
+#
+#    Parameters: $msgLevel  - message type indicator (see below)
+#		 $msgStr(s) - one or more message strings to display
+#
+#       Returns: 1 (true) assuming we don't throw an exception
+#
+#  Precondition: msgLevel is a single letter, one of [IWU], or the
+#		 letter 'D' or 'F' and a single digit (i.e. 'D1',
+#		 'F7', etc.).  The remaining parameters, of which
+#		 there should be at least one, are treated as message
+#		 strings.  The globals $ownName and %flag variables
+#		 must be defined.
+#
+# Postcondition: Print formatted messages to STDERR.  The following
+#		 actions are taken depending upon the initial letter
+#		 code:
+#
+#		  'W'  - print a warning unless -quiet is set.
+#
+#		  'U'  - print fatal error message, usage info, and abort.
+#
+#		  'I'  - print an info msg if -verbose is set.
+#
+#                 'T'  - print 'WOULD HAVE:' message if -whatif is set.
+#
+#		  'Fn' - print a fatal error message and abort
+#		         program, where 'n' is an integer > 2, the
+#		         exit value.  If not specified, the default
+#		         exit value is 3.
+#
+#		  'Dn' - print debug message if 'n' is less than or
+#			 equal to the current debug level value.
+#			 (Use 'D0' to always print message, regardless
+#			 of user selected debugging level.)
+
+{
+  my($level) = uc(shift(@_));
+
+  assert(defined($level), 'required parameter not defined');
+  assert(($level =~ m/^[DIWUF]/), "did not expect '$level'");
+  assert(scalar(@_) > 0, "no message supplied");
+
+  if ($level =~ m/^D(\d)$/)
+    {
+      print(STDERR "DDT: ", join("\n   : ", @_), "\n")
+	if ($1 <= $opt{debugMode});
+    }
+  elsif ($level eq 'I')
+    {
+      print(STDERR "(i) ", join("\n    ", @_), "\n")
+	if ($opt{verboseMode});
+    }
+  elsif ($level eq 'W')
+    {
+      warn("? $ownName: ",join("\n_ ", @_),"\n")
+        if (not $opt{quietMode});
+    }
+  elsif ($level eq 'T')
+    {
+      warn("WOULD-HAVE: ", join("\n          : ", @_),"\n")
+        if ($opt{whatIfMode});
+    }
+  elsif ($level eq 'U')
+    {
+      my $msg = "? $ownName: " . join("\n_ ", @_);
+      pod2usage(-verbose => 0, -exitval => 3, -msg => $msg);
+    }
+  elsif ($level =~ m/^F([0-9]?[0-9]*)$/)
+    {
+      if ($1 eq ''  or ($1 <= 3)) { $! = 3  }
+      else                        { $! = $1 }
+
+      die("! $ownName: ", join("\n_ ", @_), "\n");
+    }
+  else
+    {
+      assert(0, "unreachable code reached; \$level = '$level'");
+    }
+
+  return(1);
+}
+
+#------------------------------------------------------------------------------
+
+sub processOptions ( )
+
+#      Abstract: Validate and remove options from @ARGV.
+#
+#    Parameters: None.
+#
+#       Returns: 1 (true) assuming we don't thrown an exception
+#
+#  Precondition: We get first crack at the contents of @ARGV.
+#
+# Postcondition: All flags are found on the command line, assigned to
+#		 global variables, and removed from the @ARGV array,
+#		 leaving only parameters (if any).
+
+{
+  my $helpMode;
+  my $manMode;
+  # my @SAVE_KW       = qw(pairs jps sbs); # -save option keywords
+  # my %SAVE_KW_MATCH = abbrev(@SAVE_KW);  # Recognized abbreviations for all.
+
+  GetOptions(
+              'e|extra'    => \$opt{extraMode},
+              'f|force'    => \$opt{forceMode},
+              'w|whatif'   => \$opt{whatIfMode},
+	      'd|debug:i'  => \$opt{debugMode},
+              'q|quiet!'   => \$opt{quietMode},
+              'v|verbose!' => \$opt{verboseMode},
+           #  's|saveas=s' => \$opt{saveasMode},
+
+              'h|help'     => \$helpMode,
+              'm|manpage'  => \$manMode,
+            )
+    or pod2usage(-verbose => 0, -exitval => 2);
+
+  #---------------------------------------------+
+  # Handle requests for help and exit here.	|
+  #---------------------------------------------+
+
+  pod2usage(-noperldoc => 1, -verbose => 1) if ($helpMode);
+  pod2usage(                 -verbose => 2) if ($manMode);
+
+  #---------------------------------------------+
+  # Check for conflicting options. Exit now	|
+  # if we find any.				|
+  #---------------------------------------------+
+
+  pod2usage("verbose and quiet are mutually exclusive")
+    if ($opt{verboseMode} and $opt{quietMode});
+
+  pod2usage("quiet and debug are mutually exclusive")
+    if ($opt{quietMode} and $opt{debugMode});
+
+  #---------------------------------------------+
+  # Get/validate our save mode.			|
+  #---------------------------------------------+
+
+  # assert(defined($opt{saveasMode}), "\$opt{saveasMode} not defined");
+  # $opt{saveasMode} = lc($opt{saveasMode});
+
+  # if (defined($SAVE_KW_MATCH{$opt{saveasMode}}))
+  #   {
+  #     # not ready to solve this yet because external software
+  #     # is needed.
+  #   }
+  # else
+  #   {
+  #     tellUser('U', "unrecognized -saveas keyword: '$opt{saveMode}'",
+  #                   "expect one of: " . join('|', @SAVE_KW),
+  #                   "use -manpage option for more information"
+  #             );
+
+  #   }
+
+  #---------------------------------------------+
+  # Get the debug mode and show our option	|
+  # settings if level 2 or higher.		|
+  #---------------------------------------------+
+
+  if (not defined($opt{debugMode})) { $opt{debugMode} = 0 }
+  elsif ($opt{debugMode} == 0)      { $opt{debugMode} = 1 }
+
+  tellUser('U', "-debug requires a value from 1-9, not '$opt{debugMode}'")
+    if ($opt{debugMode} < 0 or $opt{debugMode} > 9);
+
+  if ($opt{debugMode} >= 2)
+    {
+      my @buff = ();
+      foreach my $key (sort(keys(%opt)))
+        {
+          my $label = $key;
+          $label =~ s/Mode$//;
+          $label = '-' . $label;
+
+          my $val = $opt{$key};
+          if (not defined($val))   { $val = 'NULL'   }
+          elsif ($val !~ m/^\d+$/) { $val = "'$val'" }
+
+          push(@buff, sprintf("%10s = %s", $label, $val));
+        }
+
+      tellUser('D2', @buff);
+    }
+
+  return(1);
+}
+
+#------------------------------------------------------------------------------
+
+sub processParams ( )
+
+#      Abstract: Validate and remove parameters from @ARGV.
+#
+#    Parameters: None.
+#
+#       Returns: @files -- an array of one or more filespecs
+#
+#  Precondition: Local processOptions() is called first.
+#
+# Postcondition: Removes all remaining parameters from ARGV.  All
+#		 files identified in @files exist at the time we
+#		 checked and are not directories, or we return a usage
+#		 error and throw an exception.
+
+{
+  tellUser('U', "one or more JPG filenames expected") if (scalar(@ARGV) < 1);
+
+  my @files = ();
+  my $errCnt = 0;
+  my $argNum = 1;
+  my $argCnt = scalar(@ARGV);
+
+  foreach my $nxt (@ARGV)
+    {
+      tellUser('D1', "ARG $argNum of $argCnt: $nxt");
+      $argNum++;
+      next if (isMissing($nxt));
+      tellUser("expect JPG image, not a directory", $nxt) if (-d $nxt);
+      if (not -e $nxt)
+        {
+          tellUser('W', "file lookup error", $nxt, $!);
+          $errCnt++;
+          next;
+        }
+
+      push(@files, $nxt);
+    }
+
+  tellUser('U', "no input files found") if (scalar(@files) < 1);
+  tellUser('U', "halting execution; no files processed")
+    if ($errCnt > 0 and not $opt{forceMode});
+
+  return(@files);
+}
+
+#==============================================================================
+#  Main Line  =================================================================
+#==============================================================================
+
+processOptions();
+my @workList = processParams();
+
+foreach my $fSpec (@workList)
+  {
+    print("---> $fSpec\n");
+  }
+
+__END__
+
+#==============================================================================
+#  POD  =======================================================================
+#==============================================================================
+
+=head1 NAME
+
+lif-splitter -- split Leia Image Format 3D image file into L/R files
+
+=head1 SYNOPSIS
+
+B<lif-splitter> [options] I<file1> I<...>
+
+=head1 DESCRIPTION
+
+This utility extracts the left and right stereo pair images from a
+Leia Image File 3D image file.  By default the left and right depth
+maps are not saved.
+
+=head1 OPTIONS
+
+All option names may be abbreviated down to the first letter.
+
+=over 12
+
+=item B<-width=n>
+
+For terminal output, the current column width is queried from the
+system and the formatting is adjusted accordingly.  If the terminal
+width cannot be determined the default is 80 columns.  Use this option
+to specify a wider report.
+
+=item B<-verbose>
+
+The C<FileName> system tag will may or may not be different which will
+determine if it is displayed or not.  Even then, the name could be the
+same if the files are in different directories.  This option will echo
+the absolute filepath to STDERR at the start of execution.  This
+option also reports the number of differences to STDOUT at the end of
+execution.
+
+=item B<-quiet>
+
+Suppresses non-fatal warning messages.  Currently there are none.
+
+=item B<-debug=n>
+
+Turn on debugging messages to STDERR.  'n' is an integer from 1-9
+indicating the level of detail with 1 indicating minimal, and 9 the
+maximum.  However there may not be 8 distinct message levels actually
+implemented.  A setting of -d=0 turns off debugging messages.  If
+no integer value is specified, the default is level 1.
+
+=item B<-help>
+
+Display command synopsis and options to STDOUT and exit.
+
+=item B<-manpage>
+
+Display to STDOUT entire man page and exit.
+
+=back
+
+Note that -verbose and -quiet are mutually exclusive.
+
+=head1 EXAMPLES
+
+The command:
+
+    lif-splitter this.jpg that.jpg
+
+Display Exif differences to STDOUT.
+
+=head1 DIAGNOSTICS/EXIT STATUS
+
+The B<lif-splitter> utility exits 0 if there are no differences, 1 if
+there are one or more differences, and >1 if an error occurs.
+
+=head1 ENVIRONMENT
+
+The following environment variables affect the execution of B<lif-splitter>:
+
+=over 20
+
+=item PIXDATES_FOOBAR
+
+This is something that you can set.  Xyaoda akjdk akauq a akjasua
+weafa askduaywed.
+
+=item PIXDATES_FLIPPER
+
+Xyaoda akjdk akauq.  This is something that you can set.  Xyaoda akjdk
+akauq a akjasua weafa askduaywed. Xyaoda akjdk akauq.
+
+=item FOOBAR_FIXOPAK_AKDK
+
+Xyaoda akjdk akauq a akjasua weafa askduaywed flilak askusd lasdj.
+Xyaoda akjdk akauq a akjasua. Xyaoda akjdk akauq a akjasua weafa
+askduaywed.
+
+=back
+
+=head1 SEE ALSO
+
+something(1)
+
+=head1 BUGS & LIMITATIONS
+
+Limiting the report width to a minumum of 80 characters.
+
+=head1 FUTURES
+
+=over 5
+
+=item - Add a CSV output option with headers.
+
+=back
+
+=head1 AUTHOR
+
+Bill.Costa@alumni.unh.edu
+
+=cut
+
+#=[ EOF: lif-splitter ]==
