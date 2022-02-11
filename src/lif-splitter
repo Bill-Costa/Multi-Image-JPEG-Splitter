@@ -381,7 +381,7 @@ __END__
 
 =head1 NAME
 
-lif-splitter -- split Leia Image Format 3D image file into L/R files
+lif-splitter -- split Leia Image Format 3D image file into L/R stereo pairs
 
 =head1 SYNOPSIS
 
@@ -390,8 +390,36 @@ B<lif-splitter> [options] I<file1> I<...>
 =head1 DESCRIPTION
 
 This utility extracts the left and right stereo pair images from a
-Leia Image File 3D image file.  By default the left and right depth
-maps are not saved.
+Leia Image File (LIF) 3D image file.  By default the corresponding
+left and right depth maps are not saved.  Schematically a LIF file,
+and the extracted L/R image pair, looks like this:
+
+     my-lif-image.jpg                my-lif-image_L.jpg
+   +--------------------+          +--------------------+
+   |                    |          |                    |
+   |  Left JPEG Image   | -------> |  Left JPEG Image   |
+   |                    |          |                    |
+   |--------------------|          +--------------------+
+   | short binary block |
+   |--------------------|
+   |                    |
+   |  Left Depth Map    |
+   |                    |
+   |--------------------|
+   | short binary block |            my-lif-image_R.jpg
+   |--------------------|          +--------------------+
+   |                    |          |                    |
+   |  Right JPEG Image  | -------> | Right JPEG Image   |
+   |                    |          |                    |
+   |--------------------|          +--------------------+
+   | short binary block |
+   |--------------------|
+   |                    |
+   |  Right Depth Map   |
+   |                    |
+   |--------------------|
+   | short text block   |
+   +--------------------+
 
 =head1 OPTIONS
 
@@ -399,7 +427,9 @@ All option names may be abbreviated down to the first letter.
 
 =over 12
 
-=item B<-width=n>
+=item B<-all=name>
+
+This utility expects 
 
 For terminal output, the current column width is queried from the
 system and the formatting is adjusted accordingly.  If the terminal
