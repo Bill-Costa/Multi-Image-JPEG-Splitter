@@ -27,16 +27,26 @@ $ lif-splitter -manpage
 
 ## Requirements and Installation ##
 
-This script requires version 5.x of Perl to be installed and found in
-the user's PATH.  Perl is typically pre-installed on most Linux
-systems and macOS up to and including Big Sur 11.  It also can be
-easily installed on Windows.  More information about installing Perl
-can be found on this [Perl.com
-page](https://www.perl.com/article/downloading-and-installing-perl-in-2021/).
+This script requires a version 5 of Perl in the user's PATH.  Perl is
+typically pre-installed on most Linux systems and macOS up to and
+including Big Sur 11.  To confirm Perl is already installed on your
+system, use this terminal command:
 
-Copy the Perl script `lif-splitter` from the project's `src` directory
-to wherever you keep your command line scripts.  Sorry there is no
-automated installer at this time.
+`````text
+$ perl --version
+
+This is perl 5...
+`````
+
+Perl can also can be easily installed on Windows.  A step-by-step
+guide for installing the latest version of Perl on Windows, macOS, and
+Linux can be found on the
+[Perl.com](https://www.perl.com/article/downloading-and-installing-perl-in-2021/)
+site.
+
+To install the script, copy the Perl script `lif-splitter` from the
+project's `src` directory to wherever you keep your command line
+scripts.  Sorry there is no automated installer at this time.
 
 ## Background ##
 
