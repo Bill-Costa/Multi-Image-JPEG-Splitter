@@ -2,21 +2,28 @@
 
 ## Purpose ##
 
-Splits a Leia Image Format (LIF) 3D image file into separate two JPEG
-files; left and right stereoscopic pairs.  It also optionally extracts
-the 2 corresponding depth map images.
+Splits a Leia Image Format (LIF) 3D image file into two separate JPEG
+files; a left and right stereoscopic pair.  Optionally it can also
+extract the two corresponding depth map images, and other binary and
+text data found within the LIF file.
 
 ## Usage ##
 
-The `lif-splitter` utility is a command line application.
+`lif-splitter` is a command line application.
 
 `````shell
 $ lif-splitter [options] my-image.jpg [...]
 `````
-The default operation extracts the left/right stereoscopic image pair
+The default operation extracts only the left/right stereoscopic image pair
 as ordinary JPEG files.
 
-![LLIF to JPEG L/R Pairs](docs/lif-to-jpeg.png?raw=true)
+<img src="docs/lif-to-jpeg.png?raw=true"
+     alt="Extracting the left and right JPEG segments."
+     style="display:block;
+            float:none;
+            margin-left:auto;
+            margin-right:auto;
+            ">
 
 To view a complete man page, use the `-manpage` option.  For a list of
 options, use the `-help` option.
@@ -27,10 +34,11 @@ $ lif-splitter -manpage
 
 ## Requirements and Installation ##
 
-This script requires a version 5 of Perl in the user's PATH.  Perl is
-typically pre-installed on most Linux systems and macOS up to and
-including Big Sur 11.  To confirm Perl is already installed on your
-system, use this terminal command:
+This script requires Perl which is typically pre-installed on most
+Linux systems and macOS up to and including Big Sur 11.  To confirm
+Perl is already installed on your system, and is in your
+[PATH](https://en.wikipedia.org/wiki/PATH_\(variable\)), use this
+terminal command:
 
 `````text
 $ perl --version
@@ -38,20 +46,18 @@ $ perl --version
 This is perl 5...
 `````
 
-Perl can also can be easily installed on Windows.  A step-by-step
-guide for installing the latest version of Perl on Windows, macOS, and
-Linux can be found on the
-[Perl.com](https://www.perl.com/article/downloading-and-installing-perl-in-2021/)
-site.
+Perl can also be easily installed on Windows, macOS, and Linux using this
+[step-by-step guide](https://www.perl.com/article/downloading-and-installing-perl-in-2021/).
 
-To install the script, copy the Perl script `lif-splitter` from the
-project's `src` directory to wherever you keep your command line
-scripts.  Sorry there is no automated installer at this time.
+To install this utility, just copy the single file `lif-splitter` from
+the project's `src` directory to [wherever you keep your
+scripts](https://shapeshed.com/using-custom-shell-scripts-on-osx-or-linux/).
+Sorry there is no automated installer at this time.
 
 ## Background ##
 
 The Leia Image Format (LIF) is a proprietary
-[stereoscopic](https://en.wikipedia.org/wiki/Stereoscopy) data format
+[stereoscopic](https://en.wikipedia.org/wiki/Stereoscopy) file format
 used for storing so called "4-View" images designed to be displayed on
 a device using Leia's "3D Lightfield Technology" [autostereoscopic
 display](https://en.wikipedia.org/wiki/Autostereoscopy).  When this
@@ -100,7 +106,13 @@ saved to an auxillary file for later examination and study.
 To perform the parsing of the binary byte stream, the following Finite
 State Machine (FSM) is used.
 
-![LIF Finite State Machine Parser](docs/parser-FSM.png?raw=true)
+<img src="docs/parser-FSM.png?raw=true"
+     alt="LIF Finite State Machine Parser"
+     style="display:block;
+            float:none;
+            margin-left:auto;
+            margin-right:auto;
+            ">
 
 The above model can also be represented as a transition table.  Find
 the current state at the top or the table; read down to find which
