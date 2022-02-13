@@ -17,8 +17,8 @@ use Data::Dumper;		# Easy data structure debugging.
 use Getopt::Long;		# Parse our command line please.
 use File::Basename;		# For parsing file names.
 use Pod::Usage;			# Easy usage text, help, and man page.
-use Data::Dumper;		# Handy for debuging data structures.
 #use Text::Abbrev;		# Allow keyword abbreviation.
+use Fcntl qw(SEEK_SET);         # Used in seek() function for moving cursor.
 no autovivification;		# Allow hash key testing without auto creation.
 				#--[ Global Vars ]-----------------------------
 my $ownName = (fileparse	# Get our own name, that is, how we were
@@ -39,6 +39,11 @@ $opt{quietMode}   = 0;		# -quiet   : suppress warning messages
 $opt{verboseMode} = 0;		# -verbose : show progress
 $opt{debugMode}   = undef();	# -debug   : undef or 0-9
 #$opt{saveasMode}  = 'pairs';	# -saveas  : one of 'pairs', 'jps', 'sbs'
+
+my $FF = chr(0xFF);
+my $D8 = chr(0xD8);
+my $D9 = chr(0xD9);
+my $MAX_SIZE = (4 * 8000 * 5000); # 4 uncompressed 8K images in one file.
 
 #==============================================================================
 #  Subroutines  ===============================================================
@@ -361,6 +366,97 @@ sub processParams ( )
   return(@files);
 }
 
+#------------------------------------------------------------------------------
+
+sub isJPEG ( $ $ )
+
+#      Abstract: Returns true if file starts with JPEG image marker.
+#
+#    Parameters: $fSpec -- the filespec of the source file
+#		 $fh -- an open filehandle in raw read mode.
+#
+#       Returns: $bool -- explicitly 0 or 1
+#
+#  Precondition: $fSpec is the file path and name for the file
+#		 attached to $fh; $fh itself is an open filehandle in
+#		 raw mode and ready for read operations.
+#
+# Postcondition: The filehandle is returned with the cursor set to the
+#		 beginning of the file, without regard to its original
+#		 position.  A fatal error is thrown if any file
+#		 handling error occurs.
+#
+#         Notes: We make sure we are at the start of the file, sample
+#		 the first two characters, rewind back to the start of
+#		 the file, return the results of our lookahead.
+
+{
+  my($fSpec, $fh) = @_;
+  assert((not isMissing($fSpec)), 'required parameter $fSpec is missing');
+  assert((not isMissing($fh)),    'required parameter $fh is missing');
+
+  seek($fh, 0, SEEK_SET) or tellUser('F', 'file read error', $fSpec, $!);
+  my $charCnt = read($fh, my $str, 2);
+  tellUser('F', "file read error", $fSpec, $!) if (not defined($charCnt));
+  seek($fh, 0, SEEK_SET) or tellUser('F', "file rewind error", $!);
+  return(0) if ($charCnt < 2);
+  return(0) if (substr($str,0,1) ne $FF and substr($str,1,1) ne $D8);
+  return(1);
+}
+
+#------------------------------------------------------------------------------
+
+sub parseLIF ( $ $ )
+
+#      Abstract: Attempts to parse a LIF format JPEG file.
+#
+#    Parameters: $fSpec -- the filespec of the source file
+#		 $fh -- an open filehandle in raw read mode.
+#
+#       Returns: $totalBytes -- total number of bytes read from $fh.
+#
+#  Precondition: $fSpec is the file path and name for the file
+#		 attached to $fh; $fh itself is an open filehandle in
+#		 raw mode and ready for read operations starting at
+#		 the beginning of the file.  Global %opt is fully
+#		 initialized.
+#
+# Postcondition: If there are no parsing errors, one or more output
+#		 files are created from our input.  Our default mode
+#		 is to not overwrite existing files.  In fact if
+#		 either the left or right image files exist, we will
+#		 output nothing and issue a warning.  In default mode
+#		 we also warn if we did not see exactly four JPEG
+#		 segments as expected in a LIF file.
+#
+#		 If the global $opt{clobberMode} is true than any
+#		 existing files with the same name are overwritten
+#		 without comment.
+#
+#		 If the global $opt{allMode} is true than sequential
+#		 file naming is used for all segments.  A warning is
+#		 issued if we find the next logical filename in the
+#		 sequence exists beyond the last file we have written.
+
+{
+  my($fSpec, $fh) = @_;
+  assert((not isMissing($fSpec)), 'required parameter $fSpec is missing');
+  assert((not isMissing($fh)),    'required parameter $fh is missing');
+  seek($fh, 0, SEEK_SET) or tellUser('F', "file rewind error", $!);
+
+  my $segCnt     = 0;
+  my $totalBytes = 0;
+  while (not eof($fh))
+    {
+      my $charCnt = read($fh, my $str, 1);
+      tellUser('F', "file read error", $fSpec, $!) if (not defined($charCnt));
+      last if ($charCnt == 0);
+      $totalBytes++;
+    }
+
+  return($totalBytes);
+}
+
 #==============================================================================
 #  Main Line  =================================================================
 #==============================================================================
@@ -370,7 +466,20 @@ my @workList = processParams();
 
 foreach my $fSpec (@workList)
   {
-    print("---> $fSpec\n");
+    open(my $source, '<:raw', $fSpec)
+      or die("! $0: error opening file in raw mode\n_ $fSpec\n_ $!\n");
+
+    if (not $opt{allMode} and not isJPEG($fSpec, $source))
+      {
+        tellUser('W', "does not look like JPEG format", $fSpec, "skipped");
+        next;
+      }
+
+    my $totalBytes = parseLIF($fSpec, $source);
+    close($source);
+
+    print("---> $fSpec: $totalBytes\n");
+    close($source);
   }
 
 __END__
@@ -385,7 +494,7 @@ lif-splitter -- split Leia Image Format 3D image file into L/R stereo pairs
 
 =head1 SYNOPSIS
 
-B<lif-splitter> [options] I<file1> I<...>
+B<lif-splitter> [options] I<file1.jpg> I<...>
 
 =head1 DESCRIPTION
 
@@ -427,27 +536,17 @@ All option names may be abbreviated down to the first letter.
 
 =over 12
 
-=item B<-all=name>
+=item B<-all>
 
-This utility expects 
-
-For terminal output, the current column width is queried from the
-system and the formatting is adjusted accordingly.  If the terminal
-width cannot be determined the default is 80 columns.  Use this option
-to specify a wider report.
+Blah blah blah...
 
 =item B<-verbose>
 
-The C<FileName> system tag will may or may not be different which will
-determine if it is displayed or not.  Even then, the name could be the
-same if the files are in different directories.  This option will echo
-the absolute filepath to STDERR at the start of execution.  This
-option also reports the number of differences to STDOUT at the end of
-execution.
+Blah blah blah...
 
 =item B<-quiet>
 
-Suppresses non-fatal warning messages.  Currently there are none.
+Suppresses non-fatal warning messages and default progress messages to STDERR.
 
 =item B<-debug=n>
 
@@ -471,16 +570,16 @@ Note that -verbose and -quiet are mutually exclusive.
 
 =head1 EXAMPLES
 
-The command:
+Given the command:
 
-    lif-splitter this.jpg that.jpg
+    $ lif-splitter this.jpg that.jpg
 
-Display Exif differences to STDOUT.
+If the input files are valid LIF format, four output files are generated:
 
-=head1 DIAGNOSTICS/EXIT STATUS
-
-The B<lif-splitter> utility exits 0 if there are no differences, 1 if
-there are one or more differences, and >1 if an error occurs.
+    this_L.jpg
+    this_R.jpg
+    that_L.jpg
+    that_R.jpg
 
 =head1 ENVIRONMENT
 
@@ -512,13 +611,18 @@ something(1)
 
 =head1 BUGS & LIMITATIONS
 
-Limiting the report width to a minumum of 80 characters.
+We have a naive understanding of how a LIF file is formatted beyond
+the fact that each JPEG segment has a specific two-byte character pair
+identifying the start and end of each image.  On the plus side, by
+using the C<-all> option, this utility could be used to extract JPEG
+images from just about any file that has two or more JPEG images that
+have been simply concatenated together.
 
 =head1 FUTURES
 
 =over 5
 
-=item - Add a CSV output option with headers.
+=item - No new features planned at this time.  Suggestions welcomed.
 
 =back
 

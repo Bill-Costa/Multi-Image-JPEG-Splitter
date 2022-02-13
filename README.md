@@ -2,10 +2,10 @@
 
 ## Purpose ##
 
-Splits a Leia Image Format (LIF) 3D image file into two separate JPEG
-files; a left and right stereoscopic pair.  Optionally it can also
-extract the two corresponding depth map images, and other binary and
-text data found within the LIF file.
+Splits a 3D Leia Image Format (LIF) file into two separate JPEG files;
+a left and right stereoscopic pair.  Optionally it can also extract
+the two corresponding depth map images, and other binary and text data
+found within the LIF file.
 
 ## Usage ##
 
@@ -17,28 +17,23 @@ $ lif-splitter [options] my-image.jpg [...]
 The default operation extracts only the left/right stereoscopic image pair
 as ordinary JPEG files.
 
-<img src="docs/lif-to-jpeg.png?raw=true"
-     alt="Extracting the left and right JPEG segments."
-     style="display:block;
-            float:none;
-            margin-left:auto;
-            margin-right:auto;
-            ">
+![LIF to JPEG L/R Pairs](docs/lif-to-jpeg.png?raw=true)
 
-To view a complete man page, use the `-manpage` option.  For a list of
-options, use the `-help` option.
+To view a complete manual page, use the `-manpage` option.
 
 `````shell
 $ lif-splitter -manpage
 `````
 
+For a list of available options, use the `-help` option.
+
 ## Requirements and Installation ##
 
-This script requires Perl which is typically pre-installed on most
-Linux systems and macOS up to and including Big Sur 11.  To confirm
-Perl is already installed on your system, and is in your
-[PATH](https://en.wikipedia.org/wiki/PATH_\(variable\)), use this
-terminal command:
+This script requires Perl language interpreter which is typically
+pre-installed on most Linux systems and macOS up to and including Big
+Sur 11.  To confirm Perl is already installed on your system, and is
+in your [PATH](https://en.wikipedia.org/wiki/PATH_\(variable\)), use
+the following terminal command:
 
 `````text
 $ perl --version
@@ -46,8 +41,9 @@ $ perl --version
 This is perl 5...
 `````
 
-Perl can also be easily installed on Windows, macOS, and Linux using this
-[step-by-step guide](https://www.perl.com/article/downloading-and-installing-perl-in-2021/).
+Perl can also be easily installed on Windows, macOS, and Linux by
+following this [step-by-step
+guide](https://www.perl.com/article/downloading-and-installing-perl-in-2021/).
 
 To install this utility, just copy the single file `lif-splitter` from
 the project's `src` directory to [wherever you keep your
@@ -66,23 +62,24 @@ smartphone](https://en.wikipedia.org/wiki/Red_Hydrogen_One) and [Leia
 Lume Pad tablet
 computer](https://www.cnet.com/tech/computing/lume-pad-brings-glasses-free-3d-back-again-on-an-android-tablet/).
 Both of these devices is equipped with a 3D camera.  Photos taken with
-this camera are saved as a single JPEG file using a proprietary LIF
-format to store the resulting left/right stereo image pair and
+this camera are saved as a single JPEG file using the proprietary LIF
+file format to store the resulting left/right stereo image pair and
 corresponding depth maps.  Conventional JPEG viewing software will
 only 'see' the left view which is the first image in the data stream.
 But when viewed with [Leia Inc's](https://www.leiainc.com/) own
 software, all of the images are used and displayed using their 3D
 lightfield technology.
 
-The fact that the LIF format contains an independant pair of
-conventional JPEG images for the left and right views, it is possible
-to extract the sterescopic pair as separate left and right JPEG image
-files.  This would he first step in converting such pairs into an
-alternate file format such as
+The fact that the LIF format contains a pair of conventional JPEG
+images for the left and right views makes it is possible to extract
+these as two independent JPEG image files.  This would he first step
+in converting such pairs into an alternate stereoscopic file format
+such as
 [MPO](https://en.wikipedia.org/wiki/JPEG#JPEG_Multi-Picture_Format) or
 [JPS](https://en.wikipedia.org/wiki/JPEG#JPEG_Stereoscopic), or as a
-conventional side-by-side format with a `.jpg` extension.  For these
-formats the LIF format depth map images are not needed.
+conventional side-by-side format image with a `.jpg` extension.  For
+these formats the LIF format depth map images are not needed so they
+are not extracted by default.
 
 ## Features ##
 
@@ -106,13 +103,7 @@ saved to an auxillary file for later examination and study.
 To perform the parsing of the binary byte stream, the following Finite
 State Machine (FSM) is used.
 
-<img src="docs/parser-FSM.png?raw=true"
-     alt="LIF Finite State Machine Parser"
-     style="display:block;
-            float:none;
-            margin-left:auto;
-            margin-right:auto;
-            ">
+![LIF Finite State Machine Parser](docs/parser-FSM.png?raw=true)
 
 The above model can also be represented as a transition table.  Find
 the current state at the top or the table; read down to find which
