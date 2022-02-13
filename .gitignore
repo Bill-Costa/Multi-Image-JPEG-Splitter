@@ -4,6 +4,7 @@
 /META.json
 /MYMETA.*
 /fodder
+.DS_Store
 *.o
 *.pm.tdy
 *.bs
