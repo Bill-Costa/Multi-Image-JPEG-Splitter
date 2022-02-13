@@ -105,16 +105,7 @@ State Machine (FSM) is used.
 
 ![LIF Finite State Machine Parser](docs/parser-FSM.png?raw=true)
 
-The above model can also be represented as a transition table.  Find
-the current state at the top or the table; read down to find which
-condition matches the current input character.  For example `IN: ! D8`
-means if the current input character is not the `0xD8` character.  If
-the input matches, perform the action described and read to the right
-for the next state.
-
-Q1 is the unique initial starting state.  Q1 and Q5 are the only
-expected halting states.  In particular end of data while in Q3 or
-Q4 is an error (truncated image).
+The above model can also be represented as a transition table.
 
 `````text
 +----------+------------+----------+----------+----------+
@@ -149,4 +140,12 @@ Q4 is an error (truncated image).
 +----------+------------+----------+----------+----------+
 `````
 
+Find the current state at the top or the table; read down to find
+which condition matches the current input character.  For example `IN:
+! D8` means if the current input character is not the `0xD8`
+character.  If the input matches, perform the action described and
+read to the right for the next state.
 
+Q1 is the unique initial starting state.  Q1 and Q5 are the only
+expected halting states.  In particular end of data while in Q3 or Q4
+is an error (truncated image).
