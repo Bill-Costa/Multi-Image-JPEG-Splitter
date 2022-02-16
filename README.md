@@ -1,11 +1,13 @@
-# Leia-Image-Format-Splitter #
+# Multi-Image JPEG Splitter #
 
 ## Purpose ##
 
-Splits a 3D Leia Image Format (LIF) file into two separate JPEG files;
-a left and right stereoscopic pair.  Optionally it can also extract
-the two corresponding depth map images, and other binary and text data
-found within the LIF file.
+This utility extracts individual JPEG images that have been stacked
+within a single file.  Supported input formats include
+[3D Leia Image Format](https://docs.leialoft.com/developer/android-media-sdk/supported-media)
+(LIF) and
+[MPO](https://en.wikipedia.org/wiki/JPEG#JPEG_Multi-Picture_Format)
+files.
 
 ## Usage ##
 
@@ -14,6 +16,7 @@ found within the LIF file.
 `````shell
 $ lif-splitter [options] my-image.jpg [...]
 `````
+
 The default operation extracts only the left/right stereoscopic image pair
 as ordinary JPEG files.
 
@@ -53,6 +56,14 @@ Sorry there is no automated installer at this time.
 
 ## Background ##
 
+.....file into two separate JPEG files; the left and right portions
+of a stereoscopic image pair.  Optionally it can also extract the two
+corresponding depth map images that are part of this proprietary
+format, along with other binary and text data found within the LIF
+file.  This utility can also be used to extract all of the individual
+JPEG inages stored in an
+file.
+
 The Leia Image Format (LIF) is a proprietary
 [stereoscopic](https://en.wikipedia.org/wiki/Stereoscopy) file format
 used for storing so called "4-View" images designed to be displayed on
@@ -81,6 +92,15 @@ such as
 conventional side-by-side format image with a `.jpg` extension.  For
 these formats the LIF format depth map images are not needed so they
 are not extracted by default.
+
+This utility can also extract all of the individual images from a JPEG
+Multi-Picture Format (MPO) while preserving any embedded thumbnail and
+preview images.  However MPO is a widely recognized format with
+stereographic software like [StereoPhoto
+Maker](https://stereo.jpn.org/eng/stphmkr/),
+[COSIMA](http://www.cosima-3d.de/),
+[StMani](https://sourceforge.net/projects/stmani3/), and other stereo
+photo processing programs.
 
 ## Program Bugs and Limitations ##
 
@@ -123,14 +143,12 @@ LIF Finite State Machine (FSM) Parser
 
 "echo" means optionally write any non-image data to a 'discard' file.
 
-
 Note that Q1 is the unique initial starting state.  Q1 and Q5 are the
 expected halting states.  In particular reaching the end of the input
 stream while in Q3 or Q4 is an error (truncated image).
 
 The above [directed graph](https://en.wikipedia.org/wiki/Directed_graph)
 can also be represented as the following state transition table.
-
 
 `````text
 +----------+------------+----------+----------+----------+----------+----------+
@@ -174,6 +192,9 @@ can also be represented as the following state transition table.
 |          |            |          |          |          |          |          | thumb
 +----------+------------+----------+----------+----------+----------+----------+
 `````
+
+(Note: There are 7 columns and a set of row labels on the right hand side in
+the table above.)
 
 Find the current state at the top or the table; read down to find
 which condition matches the current input byte.  For example `IN:
