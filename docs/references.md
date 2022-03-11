@@ -57,4 +57,8 @@ looky-see of JPEG file structure.
 
   [Link-to-Reference](https://www.garykessler.net/library/file_sigs.html)
 
+## Discussions ##
+
+- [LeiaCam should use MPO](https://forums.leialoft.com/t/leiacam-should-use-mpo/1766)
+
 <!-- EOF: references.md -->
