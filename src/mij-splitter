@@ -16,6 +16,7 @@ use strict;			# Keep things squeaky clean.
 use Data::Dumper;		# Easy data structure debugging.
 use Getopt::Long;		# Parse our command line please.
 use File::Basename;		# For parsing file names.
+use File::Spec::Functions;	# For building file specs portably.
 use Pod::Usage;			# Easy usage text, help, and man page.
 #use Text::Abbrev;		# Allow keyword abbreviation.
 use Fcntl qw(SEEK_SET);         # Used in seek() function for moving cursor.
@@ -31,8 +32,8 @@ my $ownName = (fileparse	# Get our own name, that is, how we were
 my $discardBuf    = undef();	# If defined, non-image binary data
 my %opt           = ();		# Command line options.
 $opt{clobberMode} = 0;		# -clobber : overwrite existing file
-#$opt{forceMode}   = 0;          # -force   : ignore file errors
-$opt{extraMode}   = 0;		# -extra   : non-image data to discard file
+$opt{forceMode}   = 0;          # -force   : ignore file size limit
+$opt{extraMode}   = 0;		# -extra   : non-image data to _extra file
 $opt{allMode}     = undef;	# -all     : export all JPGs with ord naming
 $opt{whatIfMode}  = 0;		# -whatif  : echo action but change nothing
 $opt{quietMode}   = 0;		# -quiet   : suppress warning messages
@@ -88,6 +89,51 @@ sub trimStr ( $ )
   return('') if (not defined($str));
   $str =~ s/^\s+|\s+$//g;
   return($str);
+}
+
+#------------------------------------------------------------------------------
+
+sub commify ( $ )
+
+#      Abstract: Add American style thousands separator to number.
+#
+#    Parameters: $num -- number(s) to be edited
+#
+#       Returns: $str -- formatted text
+#
+#  Precondition: $num is a defined scalar value.
+#
+# Postcondition: $str is printable text.
+#
+#     Reference: https://www.oreilly.com/library/view/perl-cookbook/1565922433/ch02s18.html
+
+{
+  my $num = reverse(shift(@_));
+  $num =~ s/(\d\d\d)(?=\d)(?!\d*\.)/$1,/g;
+  return(scalar(reverse($num)));
+}
+
+#------------------------------------------------------------------------------
+
+sub kBytes ( $ )
+
+#      Abstract: Return byte count as human friendly string.
+#
+#    Parameters: $bytes -- integer value
+#
+#       Returns: $str   -- formatted text
+#
+#  Precondition: $bytes is defined and numeric
+#
+# Postcondition: $str is printable text.
+
+{
+  my $bytes = shift(@_);
+  return('(internal error; missing)')     if (not defined($bytes));
+  return('(internal error; not a count)') if (not $bytes =~ m/^\d+$/);
+  return("$bytes bytes")                  if ($bytes < 1000);
+  $bytes = commify(int($bytes/1000));
+  return($bytes . 'k bytes');
 }
 
 #------------------------------------------------------------------------------
@@ -236,7 +282,7 @@ sub processOptions ( )
   GetOptions(
               'e|extra'    => \$opt{extraMode},
               'a|all!'     => \$opt{allMode},
-           #  'f|force'    => \$opt{forceMode},
+              'f|force'    => \$opt{forceMode},
               'w|whatif'   => \$opt{whatIfMode},
 	      'd|debug:i'  => \$opt{debugMode},
               'q|quiet!'   => \$opt{quietMode},
@@ -265,20 +311,6 @@ sub processOptions ( )
 
   pod2usage("-quiet and -debug are mutually exclusive")
     if ($opt{quietMode} and $opt{debugMode});
-
-  if (defined($opt{allMode}))
-    {
-      pod2usage("-extra and -noall are mutually exclusive")
-        if ($opt{extraMode} and not $opt{allMode});
-    }
-  elsif ($opt{extraMode})
-    {
-      $opt{allMode} = 1;
-    }
-  else
-    {
-      $opt{allMode} = 0;
-    }
 
   #---------------------------------------------+
   # Get/validate our save mode.			|
@@ -346,9 +378,15 @@ sub processParams ( )
 #  Precondition: Local processOptions() is called first.
 #
 # Postcondition: Removes all remaining parameters from ARGV.  All
-#		 files identified in @files exist at the time we
-#		 checked and are not directories, or we return a usage
-#		 error and throw an exception.
+#		 files identified in @files are validated or we return
+#		 a usage error and throw an exception.  In particular
+#
+#                  1. the file exists
+#                  2. is not a directory
+#                  3. is not too large
+#                  4. starts out with the JPEG start-of-image tag
+#
+#                Override #3 and #4 with -force option.
 
 {
   tellUser('U', "one or more filenames expected") if (scalar(@ARGV) < 1);
@@ -358,34 +396,52 @@ sub processParams ( )
   my $argNum = 1;
   my $argCnt = scalar(@ARGV);
 
-  foreach my $nxt (@ARGV)
+  foreach my $fSpec (@ARGV)
     {
-      tellUser('D1', "ARG $argNum of $argCnt: $nxt");
+      tellUser('D1', "ARG $argNum of $argCnt: $fSpec");
       $argNum++;
-      next if (isMissing($nxt));
-      tellUser("expect image file, not a directory", $nxt) if (-d $nxt);
-      if (not -e $nxt)
+      next if (isMissing($fSpec));
+
+      if (not -e $fSpec)
         {
-          tellUser('W', "file lookup error", $nxt, $!);
+          tellUser("file lookup error", $fSpec, $!);
           $errCnt++;
           next;
         }
 
-      if (not $opt{allMode})
+      if (-d $fSpec)
         {
-          if (not $nxt =~ m/$EXPECT_FILE_TYPE_RE/)
-            {
-              tellUser('W',"expect '.jpg' or '.mpo' file type",$nxt,"skipped");
-              next;
-            }
+          tellUser("expect image file, not a directory", $fSpec);
+          $errCnt++;
+          next;
         }
 
-      push(@files, $nxt);
+      if (not $opt{forceMode})
+        {
+          if (not $fSpec =~ m/$EXPECT_FILE_TYPE_RE/)
+            {
+              tellUser('W',"expect '.jpg' or '.mpo' file type", $fSpec);
+              $errCnt++;
+              next;
+            }
+
+          my $fSize = (-s $fSpec);
+          if ($fSize > $MAX_SIZE)
+            {
+              tellUser('W',"suspicious input file size",$fSpec,kBytes($fSize));
+              $errCnt++;
+              next;
+            }
+
+        }
+
+      push(@files, $fSpec);
     }
 
-  tellUser('U', "no input files found") if (scalar(@files) < 1);
   tellUser('U', "halting execution; no files processed")
     if ($errCnt > 0 and not $opt{forceMode});
+
+  tellUser('U', "no actionable input") if (scalar(@files) < 1);
 
   return(@files);
 }
@@ -430,14 +486,266 @@ sub isJPEG ( $ $ )
 
 #------------------------------------------------------------------------------
 
-sub parseLIF ( $ $ )
+sub FSM ( $ $ $ )
 
-#      Abstract: Attempts to parse a LIF format JPEG file.
+#      Abstract: Parse byte stream using Finite State Machine model.
 #
-#    Parameters: $fSpec -- the filespec of the source file
-#		 $fh    -- an open filehandle in raw read mode.
+#    Parameters: $fh      -- an open filehandle in raw read mode
+#                $fSpec   -- input filename for error reporting
+#		 $sinkDir -- where to write output files
 #
-#       Returns: $totalBytes -- total number of bytes read from $fh.
+#       Returns: @segDefs -- set of one or more file segment definitions
+#
+#  Precondition: $fh is an open filehandle in raw mode and ready for
+#		 read operations.  It is up to the caller to make sure
+#		 we are not handed a file with an inappropriate data
+#		 structure or pathologically large file size.
+#		 $sinkDir is a valid filepath for an existing
+#		 directory where the current process has the ability
+#		 to create one or more new files.  Global %opt has
+#		 been initialized.
+#
+# Postcondition: The $fh read pointer is returned with the cursor set
+#		 to the beginning of the file.  If there are no
+#		 parsing errors, a set of one or more temporary files
+#		 are created and information about those files is
+#		 reported in an array of segment description hash
+#		 records.  In particular, each record looks like the
+#		 following:
+#
+#                  {
+#                    tmpSpec => 'mij-splitter_00.img.tmp',
+#                       type => 'IMG', # one of 'IMG' or 'DATA')
+#                  }
+#
+#     Algorithm: Parsing is done using the Finite State Machine (FSM)
+#                model shown below.  To read the table, find the
+#                current state on top; read down to find which
+#                condition matches the current input character.  For
+#                example "IN: ! D8" means if the current input
+#                character is *not* the 0xD8 character.  If the input
+#                matches the condition, perform the action and read to
+#                the right for the next state.
+#
+#                Q1 is the unique initial starting state.  Q1 and Q5
+#                are the only expected halting states.  In particular
+#                end of data while in Q3 or Q4 is an error (truncated
+#                image).
+#
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  | Q1       | Q2         | Q3       | Q4       | Q5       | Q6       | Q7       |
+#  | not      | start      | in       | leave    | end      | in       | leave    |
+#  | image    | image      | image    | image    | image    | thumb    | thumb    |
+#  ================================================================================
+#  | IN: ! FF | IN: ! D8   |          |          | IN: ! FF |          |          |
+#  | - echo   | - echo FF  |          |          | - echo   |          |          | Q1
+#  |          | - echo     |          |          |          |          |          | not
+#  |          |            |          |          |          |          |          | image
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  | IN: FF   |            |          |          | IN: FF   |          |          |
+#  |          |            |          |          |          |          |          | Q2
+#  |          |            |          |          |          |          |          | start
+#  |          |            |          |          |          |          |          | image
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  |          | IN: DB     | IN: ! FF | IN: other|          |          | IN: D9   |
+#  |          | - new file | - save   | - save   |          |          | - save   | Q3
+#  |          | - save FF  |          |          |          |          |          | in
+#  |          | - save     |          |          |          |          |          | image
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  |          |            | IN: FF   |          |          |          |          |
+#  |          |            | - save   |          |          |          |          | Q4
+#  |          |            |          |          |          |          |          | leave
+#  |          |            |          |          |          |          |          | image
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  |          |            |          | IN: D9   |          |          |          |
+#  |          |            |          | - save   |          |          |          | Q5
+#  |          |            |          | - close  |          |          |          | end
+#  |          |            |          |   file   |          |          |          | image
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  |          |            |          | IN: D8   |          | IN: other| IN: other|
+#  |          |            |          | - save   |          | - save   | - save   | Q6
+#  |          |            |          |          |          |          |          | in
+#  |          |            |          |          |          |          |          | thumb
+#  +----------+------------+----------+----------+----------+----------+----------+
+#  |          |            |          |          |          | IN: FF   |          |
+#  |          |            |          |          |          | - save   |          | Q7
+#  |          |            |          |          |          |          |          | leave
+#  |          |            |          |          |          |          |          | thumb
+#  +----------+------------+----------+----------+----------+----------+----------+
+
+{
+  my($fh, $fSpec, $sinkDir) = @_;
+  assert(defined($fh),              'missing required $fh parameter');
+  assert((not isMissing($sinkDir)), 'missing required $sinkDir parameter');
+
+  if (not -e $sinkDir)
+    {
+      tellUser('F', 'error creating destination directory', $sinkDir, $!)
+        if (not mkdir($sinkDir));
+    }
+  elsif (not -d $sinkDir)
+    {
+      tellUser('F', "not a directory", $sinkDir);
+    }
+
+  my $sinkRoot  = catfile($sinkDir, $ownName);
+
+  #-------------------------------------+
+  # Setup output for the non-image data	|
+  # seen.				|
+  #-------------------------------------+
+
+  my $extraSpec;
+  my $extraFH;
+  my $extraCnt = 0;
+
+  if ($opt{extraMode})
+       { $extraSpec = catfile($sinkDir, "${ownName}_extra.tmp") }
+  else { $extraSpec = File::Spec->devnull()                     }
+
+  open($extraFH, '>:raw', $extraSpec)
+    or tellUser('F', 'error opening temp output file', $extraSpec, $!);
+
+  #-------------------------------------+
+  # Ready our input for char-by-char	|
+  # reading from first byte.		|
+  #-------------------------------------+
+
+  my @segDefs  = ();
+  my $nxtState = 'Q1';
+  my $imgCnt   = 0;
+  my $chrCnt   = 0;
+  my $tmpSpec;
+  my $imgFH;
+
+  seek($fh, 0, SEEK_SET) or tellUser('F', 'file read error', $fSpec, $!);
+  local $/ = undef; # Do not break input into records.
+
+  tellUser('D1', "   parsing: $fSpec");
+  while (read($fh, my $c, 1))
+    {
+      $chrCnt++;
+      if ($nxtState eq 'Q1')
+        {
+          if ($c eq $FF) { $nxtState = 'Q2'                }
+          else           { print($extraFH $c); $extraCnt++ }
+        }
+      elsif ($nxtState eq 'Q2')
+        {
+          if ($c ne $D8)
+            {
+              print($extraFH $FF, $c);
+              $extraCnt += 2;
+              $nxtState = 'Q1';
+            }
+          else # complete SOI marker found, start saving next image
+            {
+              print($extraFH "<IMG$imgCnt>");
+              $tmpSpec = catfile($sinkDir, "${ownName}_$imgCnt.tmp");
+              open($imgFH, '>:raw', $tmpSpec)
+                or tellUser('F', 'temp image file create error', $tmpSpec, $!);
+
+              print($imgFH $FF, $c);
+              tellUser('D1', "writing to: $tmpSpec");
+              $nxtState = 'Q3';
+              $imgCnt++;
+            }
+        }
+      elsif ($nxtState eq 'Q3')
+        {
+          print($imgFH $c);
+          $nxtState = 'Q4' if ($c eq $FF);
+        }
+      elsif ($nxtState eq 'Q4')
+        {
+          print($imgFH $c);
+          if    ($c eq $D9) { $nxtState = 'Q5' }
+          elsif ($c eq $D8) { $nxtState = 'Q6' }
+          else              { $nxtState = 'Q3' }
+        }
+      elsif ($nxtState eq 'Q5')
+        {
+          tellUser('D1', "   closing: $tmpSpec");
+          push(@segDefs, { tmpSpec => $tmpSpec, type => 'IMG' });
+          close($imgFH)
+            or confess("! $0: close error\n_ $tmpSpec\n_ $!\n_");
+
+          $imgFH = undef();
+          if ($c eq $FF)
+            {
+              $nxtState = 'Q2';
+            }
+          else
+            {
+              print($extraFH $c);
+              $extraCnt++;
+              $nxtState = 'Q1';
+            }
+        }
+      elsif ($nxtState eq 'Q6')
+        {
+          print($imgFH $c);
+          $nxtState = 'Q7' if ($c eq $FF);
+        }
+      elsif ($nxtState eq 'Q7')
+        {
+          print($imgFH $c);
+          if ($c eq $D9) { $nxtState = 'Q3' }
+          else           { $nxtState = 'Q6' }
+        }
+      else
+        {
+          confess("invalid nxtState: '$nxtState'");
+        }
+    }
+
+  #-------------------------------------+
+  # Finish any open image file and make	|
+  # sure we ended in correct state.	|
+  #-------------------------------------+
+
+  if (defined($imgFH))
+    {
+      tellUser('D1', "closing last image output: $tmpSpec");
+      push(@segDefs, { tmpSpec => $tmpSpec, type => 'IMG' });
+      close($imgFH)
+        or confess("! $0: close error\n_ $tmpSpec\n_ $!\n_");
+    }
+
+  confess("! $0: input file may be truncated or damaged\n")
+    if ($nxtState !~ m/^(Q1|Q5)$/);
+
+  #-------------------------------------+
+  # Finish up the binary data output.	|
+  #-------------------------------------+
+
+  close($extraFH);
+  tellUser('D3', "non-image bytes seen: $extraCnt");
+  if ($opt{extraMode} and $extraCnt > 0)
+    {
+      push(@segDefs, { tmpSpec => $extraSpec, type => 'DATA' });
+      tellUser('D1', "non-image data saved: $tmpSpec");
+    }
+
+  #-------------------------------------+
+  # Reset cursor in input file, report	|
+  # the files we created.		|
+  #-------------------------------------+
+
+  seek($fh, 0, SEEK_SET) or tellUser('F', 'file read error', $fSpec, $!);
+  return(@segDefs);
+}
+
+#------------------------------------------------------------------------------
+
+sub parseStackedJPEG ( $ $ )
+
+#      Abstract: Attempts to parse stacked JPEG image file.
+#
+#    Parameters: $fh      -- an open filehandle in raw read mode.
+#                $fSpec   -- the filespec of the source file
+#
+#       Returns: $fileCnt -- total number of output files created
 #
 #  Precondition: $fSpec is the file path and name for the file
 #		 attached to $fh; $fh itself is an open filehandle in
@@ -448,14 +756,10 @@ sub parseLIF ( $ $ )
 # Postcondition: If there are no parsing errors, one or more output
 #		 files are created from our input.  Our default mode
 #		 is to not overwrite existing files.  In fact if
-#		 either the left or right image files exist, we will
-#		 output nothing and issue a warning.  In default mode
-#		 we also warn if we did not see exactly four JPEG
-#		 segments as expected in a LIF file.
-#
-#		 If the global $opt{clobberMode} is true than any
-#		 existing files with the same name are overwritten
-#		 without comment.
+#		 expected output files already exist, we will output
+#		 nothing and issue a warning.  However, if the global
+#		 $opt{clobberMode} is true than any existing files
+#		 with the same name are overwritten without comment.
 #
 #		 If the global $opt{allMode} is true than sequential
 #		 file naming is used for all segments.  A warning is
@@ -463,22 +767,149 @@ sub parseLIF ( $ $ )
 #		 sequence exists beyond the last file we have written.
 
 {
-  my($fSpec, $fh) = @_;
+  my($fh, $fSpec) = @_;
   assert((not isMissing($fSpec)), 'required parameter $fSpec is missing');
   assert((not isMissing($fh)),    'required parameter $fh is missing');
-  seek($fh, 0, SEEK_SET) or tellUser('F', "file rewind error", $!);
 
-  my $segCnt     = 0;
-  my $totalBytes = 0;
-  while (not eof($fh))
+  #-------------------------------------+
+  # Determine our parsing mode,	get the	|
+  # basename for outputs.		|
+  #-------------------------------------+
+
+  my $type;
+  if    ($opt{allMode})       { $type = 'ALL'                        }
+  elsif ($fSpec =~ m/\.jpg/i) { $type = 'JPG'                        }
+  elsif ($fSpec =~ m/\.mpo/i) { $type = 'MPO'                        }
+  else                        { assert(0, 'file type error', $fSpec) }
+
+  my $outNameStem = $fSpec;
+  $outNameStem =~ s/$EXPECT_FILE_TYPE_RE//;
+  assert((not isMissing($outNameStem)), "input filename parse error");
+
+  #-------------------------------------+
+  # Parse image, verify segment count	|
+  # by type and mode.			|
+  #-------------------------------------+
+
+  seek($fh, 0, SEEK_SET) or tellUser('F', "file rewind error", $!);
+  my @segments = FSM($fh, $fSpec, '.');
+  my $segCnt = scalar(@segments);
+  my $imgCnt = 0;
+  my $binCnt = 0;
+
+  if ($segCnt == 0)
     {
-      my $charCnt = read($fh, my $str, 1);
-      tellUser('F', "file read error", $fSpec, $!) if (not defined($charCnt));
-      last if ($charCnt == 0);
-      $totalBytes++;
+      tellUser('W', "empty input file?", $fSpec);
+      return(0);                                                # CASE 0: empty
     }
 
-  return($totalBytes);
+  foreach my $seg (@segments)
+    {
+      my $type = $seg->{type};
+      if    ($type eq 'IMG')  { $imgCnt++                               }
+      elsif ($type eq 'DATA') { $binCnt++                               }
+      else                    { assert(0, "unexpected keyword '$type'") }
+    }
+
+  tellUser('D4', "image files: $imgCnt", "extra files: $binCnt");
+
+  assert(($segCnt > 0),  "no output files extracted");
+  assert(($binCnt == 0), "unexpected binary 'extra' file", Dumper(@segments))
+    if (not $opt{extraMode});
+
+  if ($imgCnt < 2)
+    {
+      my $msg;
+      if    ($imgCnt == 1) { $msg = "only one image found in file"     }
+      elsif ($binCnt == 1) { $msg = "no JPEG images found in file"     }
+      else                 { assert(0, "$imgCnt + $binCnt != $segCnt") }
+
+      foreach my $seg (@segments)
+        {
+          my $tmpSpec = $seg->{tmpSpec};
+          tellUser('D3', "cleanup $tmpSpec");
+          unlink($tmpSpec)
+            or tellUser('F', "error cleaning up temp file", $tmpSpec, $!);
+        }
+
+      tellUser('W', $msg, $fSpec);
+      return(0);                                    # CASE 1: solo output file
+    }
+
+  my $fileCnt = 0;
+  my $leftIndex;
+  my $rghtIndex;
+  my $outputNumbered;
+
+  if (not $outputNumbered)
+    {
+      if ($type eq 'ALL')
+        {
+          $outputNumbered = 1;
+        }
+      elsif ($type eq 'JPG')
+        {
+          if ($imgCnt == 4)
+            {
+              $leftIndex = 0;
+              $rghtIndex = 2;
+            }
+          else
+            {
+              $outputNumbered = 1;
+              tellUser(
+                        'W',
+                        "cannot assume input in LIF format",
+                        $fSpec,
+                        "created $imgCnt sequentially numbered image files"
+                      );
+            }
+        }
+      elsif ($type eq 'MPO')
+        {
+          if ($imgCnt == 2)
+            {
+              $leftIndex = 0;
+              $rghtIndex = 1;
+            }
+          else
+            {
+              $outputNumbered = 1;
+              tellUser(
+                        'W',
+                        "cannot assume input in LIF format",
+                        $fSpec,
+                        "created $imgCnt sequentially numbered image files"
+                      );
+            }
+        }
+      else
+        {
+          assert(0, "unexpected type: '$type'");
+        }
+    }
+
+  die <<MSG;
+
+    1. Change 'IMG' and 'DATA' to 'jpg' and 'bin'.
+
+    2. Get $fSpec name minus extension.  Do we
+       already do this someplace else?
+MSG
+
+  if ($outputNumbered)
+    {
+      my $digits = length(scalar(@segments));
+      my $FMT    = "%s_%0${digits}i-of-%0${digits}i.%s";
+      for (my $i = 0; $i <= $#segments; $i++)
+        {
+          my $tmpSpec = $segments[$i]->{tmpSpec};
+          my $fType   = @segments[$i]->{type};
+          printf("$FMT\n", $tmpSpec, $i, scalar(@segments), $fType);
+        }
+    }
+
+  return($fileCnt);
 }
 
 #==============================================================================
@@ -491,7 +922,7 @@ my @workList = processParams();
 foreach my $fSpec (@workList)
   {
     open(my $source, '<:raw', $fSpec)
-      or die("! $0: error opening file in raw mode\n_ $fSpec\n_ $!\n");
+      or tellUser('F', 'error opening file in raw mode', $fSpec, $!);
 
     if (not $opt{allMode} and not isJPEG($fSpec, $source))
       {
@@ -499,10 +930,7 @@ foreach my $fSpec (@workList)
         next;
       }
 
-    my $totalBytes = parseLIF($fSpec, $source);
-    close($source);
-
-    print("---> $fSpec: $totalBytes\n");
+    my $fileCnt = parseStackedJPEG($source, $fSpec);
     close($source);
   }
 
@@ -577,10 +1005,21 @@ with the expected 'start-of-image' (SOI) marker of a normal JPEG file.
 
 =item B<-extra>
 
-Use this option to save non-JPEG image data from the original files,
-as a sequence of zero or more C<.bin> files.  Note that this turns on
-the B<-all> option as well.  Normally any non-JPEG information is
-quietly ignored and discarded.
+Use this option to save non-JPEG image data from the original file to
+a C<mij-splitter_extra.bin> files.  Note that this turns on the
+B<-all> option as well.  Normally any non-JPEG information is quietly
+ignored and discarded.  The hexdump(1) with the B<-C> option is a good
+tool for examining the contents of this file.
+
+=item B<-force>
+
+Use this option to ignore required input file extension type (.jpg or
+.mpo) and to allow input of suspicious large input files.
+
+=item B<-whatif>
+
+Do a test run and report results without actually creating any output
+files.
 
 =item B<-verbose>
 
@@ -588,7 +1027,8 @@ Displays additional progress information to STDERR.
 
 =item B<-quiet>
 
-Suppresses non-fatal warning messages and default progress messages to STDERR.
+Suppresses non-fatal warning messages and default progress messages to
+STDERR.
 
 =item B<-debug=n>
 
@@ -610,7 +1050,7 @@ Display to STDOUT entire man page and exit.
 
 Note that -verbose and -quiet are mutually exclusive.
 
-=head1 EXAMPLES
+=head1 EXAMPLE
 
 Given the command:
 
@@ -625,18 +1065,21 @@ If the input files are valid LIF format, four output files are generated:
 
 =head1 SEE ALSO
 
-When this was written there were no known formal specifications for
-LIF format image files.
+=head2 Leia Image Format (H4V)
+
+  https://docs.leialoft.com/developer/android-media-sdk/supported-media
+
+  https://h4vapp.com/
 
 =head2 MPO Specification and Utilities
 
-https://www.cipa.jp/std/documents/e/DC-X007-KEY_E.pdf
+  https://www.cipa.jp/std/documents/e/DC-X007-KEY_E.pdf
 
-https://github.com/tribut/mposplit
+  https://github.com/tribut/mposplit
 
-https://github.com/ssmehta/mpo2stereo
+  https://github.com/ssmehta/mpo2stereo
 
-http://stereo.jpn.org/eng/stphmkr/help/file_35.htm
+  http://stereo.jpn.org/eng/stphmkr/help/file_35.htm
 
 =head1 BUGS & LIMITATIONS
 
@@ -648,6 +1091,9 @@ catalogs and points to each of images within an MPO file.  On the plus
 side, by using the C<-all> option, this utility could be used to
 extract JPEG images from just about any file that has two or more JPEG
 images that have been simply concatenated together.
+
+Any thumbnail images embedded within a JPEG segment are not extracted
+to their own file, but remain encoded within the parent image.
 
 =head1 FUTURES
 
