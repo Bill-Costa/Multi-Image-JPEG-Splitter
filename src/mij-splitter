@@ -7,7 +7,18 @@
 #	  Help:	mij-splitter -h
 #     Man Page:	mij-splitter -m
 #       Author:	Bill.Costa@alumni.unh.edu
+#      Version: v1.0-20220316
 # Project Page:	https://github.com/Bill-Costa/Multi-Image-JPEG-Splitter
+#
+#      THIS SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+#      EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+#      OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+#      NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+#      HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+#      WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+#      FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+#      OTHER DEALINGS IN THE SOFTWARE.
+#
 #
 #=============================================================================
 
@@ -32,22 +43,23 @@ my $ownName = (fileparse	# Get our own name, that is, how we were
 
 my $discardBuf    = undef();	# If defined, non-image binary data
 my %opt           = ();		# Command line options.
+$opt{allMode}     = undef();	# -all     : export all JPGs with ord naming
 $opt{clobberMode} = 0;		# -clobber : overwrite existing file
-$opt{forceMode}   = 0;          # -force   : ignore file size limit
+$opt{debugMode}   = undef();	# -debug   : undef or 0-9
 $opt{extraMode}   = 0;		# -extra   : non-image data to _extra file
-$opt{allMode}     = undef;	# -all     : export all JPGs with ord naming
-$opt{whatIfMode}  = 0;		# -whatif  : echo action but change nothing
+$opt{forceMode}   = 0;          # -force   : ignore file size limit; extension
+$opt{outputDir}   = undef();	# -output  : where to write our output files
 $opt{quietMode}   = 0;		# -quiet   : suppress warning messages
 $opt{verboseMode} = 0;		# -verbose : show progress
-$opt{debugMode}   = undef();	# -debug   : undef or 0-9
-#$opt{saveasMode}  = 'pairs';	# -saveas  : one of 'pairs', 'jps', 'sbs'
+#$opt{whatIfMode}  = 0;		# -whatif  : echo action but change nothing
 
 my $FF = chr(0xFF);
 my $D8 = chr(0xD8);
 my $D9 = chr(0xD9);
 my $MAX_SIZE = (4 * 8000 * 5000); # 4 uncompressed 8K images in one file.
 my $EXPECT_FILE_TYPE_RE   = qr/\.(jpg|mpo)$/i;
-my $EXCLUDE_OUR_OUTPUT_RE = qr/_L.(jpg)$/;
+my $EXCLUDE_OUR_OUTPUT_RE = qr/_(L|R).(jpg)$/i;
+my $EXCLUDE_SINGLE_3D_RE  = qr/.(jps)$/i;
 
 #==============================================================================
 #  Subroutines  ===============================================================
@@ -156,8 +168,8 @@ sub assert ( $ @ )
 #		 message strings provided and a stack trace.
 
 {
-  use Carp;			# Gives us confess() for stack backtrace,
-  $Carp::CarpLevel = 1;	# but don't report the assert() in backtrace.
+  use Carp;			# Gives us confess() for stack back-trace,
+  $Carp::CarpLevel = 1;	# but don't report the assert() in back-trace.
   my $boolExp = shift(@_);
   $_[0] = '(no message)' if (not defined($_[0]));
   if (not $boolExp)
@@ -222,7 +234,7 @@ sub tellUser ( $ @ )
   if ($level =~ m/^D(\d)$/)
     {
       print(STDERR "DDT: ", join("\n   : ", @_), "\n")
-	if ($1 <= $opt{debugMode});
+	if (defined($opt{debugMode}) and $1 <= $opt{debugMode});
     }
   elsif ($level eq 'I')
     {
@@ -282,15 +294,15 @@ sub processOptions ( )
   # my %SAVE_KW_MATCH = abbrev(@SAVE_KW);  # Recognized abbreviations for all.
 
   GetOptions(
-              'e|extra'    => \$opt{extraMode},
-              'a|all!'     => \$opt{allMode},
-              'f|force'    => \$opt{forceMode},
-              'c|clobber'  => \$opt{clobberMode},
-              'w|whatif'   => \$opt{whatIfMode},
 	      'd|debug:i'  => \$opt{debugMode},
+              'a|all!'     => \$opt{allMode},
+              'c|clobber'  => \$opt{clobberMode},
+              'e|extra'    => \$opt{extraMode},
+              'f|force'    => \$opt{forceMode},
+              'o|output=s' => \$opt{outputDir},
               'q|quiet!'   => \$opt{quietMode},
               'v|verbose!' => \$opt{verboseMode},
-           #  's|saveas=s' => \$opt{saveasMode},
+#             'w|whatif'   => \$opt{whatIfMode},
 
               'h|help'     => \$helpMode,
               'm|manpage'  => \$manMode,
@@ -316,24 +328,27 @@ sub processOptions ( )
     if ($opt{quietMode} and $opt{debugMode});
 
   #---------------------------------------------+
-  # Get/validate our save mode.			|
+  # Get output directory or set a reasonable	|
+  # default.					|
   #---------------------------------------------+
 
-  # assert(defined($opt{saveasMode}), "\$opt{saveasMode} not defined");
-  # $opt{saveasMode} = lc($opt{saveasMode});
+  my $sinkDir = $opt{outputDir};
+  $sinkDir = File::Spec->curdir() if (isMissing($sinkDir));
 
-  # if (defined($SAVE_KW_MATCH{$opt{saveasMode}}))
-  #   {
-  #     # not ready to solve this yet because external software
-  #     # is needed.
-  #   }
-  # else
-  #   {
-  #     tellUser('U', "unrecognized -saveas keyword: '$opt{saveMode}'",
-  #                   "expect one of: " . join('|', @SAVE_KW),
-  #                   "use -manpage option for more information"
-  #             );
-  #   }
+  if (-e $sinkDir)
+    {
+      tellUser('U', 'not a directory', $sinkDir) if (not -d $sinkDir);
+    }
+  elsif (not mkdir($sinkDir))
+    {
+      tellUser('F', 'error creating destination directory', $sinkDir, $!);
+    }
+  else
+    {
+      tellUser('D3', 'created new destination directory', $sinkDir);
+    }
+
+  $opt{outputDir} = $sinkDir;
 
   #---------------------------------------------+
   # Get the debug mode and show our option	|
@@ -382,25 +397,22 @@ sub processParams ( )
 #
 # Postcondition: Removes all remaining parameters from ARGV.  All
 #		 files identified in @files are validated or we return
-#		 a usage error and throw an exception.  In particular
-#
-#                  1. the file exists
-#                  2. is not a directory
-#                  3. is not too large
-#                  4. starts out with the JPEG start-of-image tag
-#
-#                Override #3 and #4 with -force option.
+#		 a usage error and throw an exception.
+
 
 {
   tellUser('U', "one or more filenames expected") if (scalar(@ARGV) < 1);
 
-  my @files = ();
-  my $errCnt = 0;
-  my $argNum = 1;
-  my $argCnt = scalar(@ARGV);
+  my @files   = ();
+  my $errCnt  = 0;
+  my $ERR_LIM = 5;
+  my $argNum  = 1;
+  my $argCnt  = scalar(@ARGV);
 
   foreach my $fSpec (@ARGV)
     {
+      last if ($errCnt > $ERR_LIM);		# Limit amount of nagging.
+
       tellUser('D1', "ARG $argNum of $argCnt: $fSpec");
       $argNum++;
       next if (isMissing($fSpec));
@@ -409,7 +421,7 @@ sub processParams ( )
         {
           tellUser("file lookup error", $fSpec, $!);
           $errCnt++;
-          next;
+          next;;
         }
 
       if (-d $fSpec)
@@ -419,8 +431,23 @@ sub processParams ( )
           next;
         }
 
-      if (not $opt{forceMode})
+      my $fSize = (-s $fSpec);
+      if ($fSize > $MAX_SIZE and not $opt{forceMode})
         {
+          tellUser('W',"suspicious input file size",$fSpec,kBytes($fSize));
+          $errCnt++;
+          next;
+        }
+
+      if (not $opt{allMode})
+        {
+          if ($fSpec =~ m/$EXCLUDE_SINGLE_3D_RE/)
+            {
+              tellUser('W', "cannot split composite 3D images ($1)", $fSpec);
+              $errCnt++;
+              next;
+            }
+
           if (not $fSpec =~ m/$EXPECT_FILE_TYPE_RE/)
             {
               tellUser('W',"expect '.jpg' or '.mpo' file type", $fSpec);
@@ -434,24 +461,13 @@ sub processParams ( )
               $errCnt++;
               next;
             }
-
-          my $fSize = (-s $fSpec);
-          if ($fSize > $MAX_SIZE)
-            {
-              tellUser('W',"suspicious input file size",$fSpec,kBytes($fSize));
-              $errCnt++;
-              next;
-            }
-
         }
 
       push(@files, $fSpec);
     }
 
-  tellUser('U', "halting execution; no files processed")
-    if ($errCnt > 0 and not $opt{forceMode});
-
-  tellUser('U', "no actionable input") if (scalar(@files) < 1);
+  tellUser('F', "halting; no files processed") if ($errCnt > 0);
+  tellUser('U', "no actionable input")         if (scalar(@files) < 1);
 
   return(@files);
 }
@@ -463,15 +479,15 @@ sub isJPEG ( $ $ )
 #      Abstract: Returns true if file starts with JPEG image marker.
 #
 #    Parameters: $fSpec -- the filespec of the source file
-#		 $fh -- an open filehandle in raw read mode.
+#		 $fh -- an open file handle in raw read mode.
 #
 #       Returns: $bool -- explicitly 0 or 1
 #
 #  Precondition: $fSpec is the file path and name for the file
-#		 attached to $fh; $fh itself is an open filehandle in
+#		 attached to $fh; $fh itself is an open file handle in
 #		 raw mode and ready for read operations.
 #
-# Postcondition: The filehandle is returned with the cursor set to the
+# Postcondition: The file handle is returned with the cursor set to the
 #		 beginning of the file, without regard to its original
 #		 position.  A fatal error is thrown if any file
 #		 handling error occurs.
@@ -500,13 +516,13 @@ sub FSM ( $ $ $ )
 
 #      Abstract: Parse byte stream using Finite State Machine model.
 #
-#    Parameters: $fh      -- an open filehandle in raw read mode
+#    Parameters: $fh      -- an open file handle in raw read mode
 #                $fSpec   -- input filename for error reporting
 #		 $sinkDir -- where to write output files
 #
 #       Returns: @segDefs -- set of one or more file segment definitions
 #
-#  Precondition: $fh is an open filehandle in raw mode and ready for
+#  Precondition: $fh is an open file handle in raw mode and ready for
 #		 read operations.  It is up to the caller to make sure
 #		 we are not handed a file with an inappropriate data
 #		 structure or pathologically large file size.
@@ -587,16 +603,6 @@ sub FSM ( $ $ $ )
   my($fh, $fSpec, $sinkDir) = @_;
   assert(defined($fh),              'missing required $fh parameter');
   assert((not isMissing($sinkDir)), 'missing required $sinkDir parameter');
-
-  if (not -e $sinkDir)
-    {
-      tellUser('F', 'error creating destination directory', $sinkDir, $!)
-        if (not mkdir($sinkDir));
-    }
-  elsif (not -d $sinkDir)
-    {
-      tellUser('F', "not a directory", $sinkDir);
-    }
 
   my $sinkRoot  = catfile($sinkDir, $ownName);
 
@@ -752,13 +758,13 @@ sub parseStackedJPEG ( $ $ )
 
 #      Abstract: Attempts to parse stacked JPEG image file.
 #
-#    Parameters: $fh      -- an open filehandle in raw read mode.
+#    Parameters: $fh      -- an open file handle in raw read mode.
 #                $fSpec   -- the filespec of the source file
 #
 #       Returns: $fileCnt -- total number of output files created
 #
 #  Precondition: $fSpec is the file path and name for the file
-#		 attached to $fh; $fh itself is an open filehandle in
+#		 attached to $fh; $fh itself is an open file handle in
 #		 raw mode and ready for read operations starting at
 #		 the beginning of the file.  Global %opt is fully
 #		 initialized.
@@ -797,7 +803,7 @@ sub parseStackedJPEG ( $ $ )
   #-------------------------------------+
 
   seek($fh, 0, SEEK_SET) or tellUser('F', "file rewind error", $!);
-  my @segments = FSM($fh, $fSpec, '.');
+  my @segments = FSM($fh, $fSpec, $opt{outputDir});
   my $segCnt = scalar(@segments);
   my $imgCnt = 0;
   my $binCnt = 0;
@@ -908,9 +914,10 @@ sub parseStackedJPEG ( $ $ )
   # Build rename/kill job list.		|
   #-------------------------------------+
 
-  my $saveAs = $fSpec;
-  $saveAs =~ s/$EXPECT_FILE_TYPE_RE//;
+  my $baseName = (File::Spec->splitpath($fSpec))[2];  # (volume, dirs, file)
+  my $saveAs   = catfile($opt{outputDir}, $baseName);
   assert((not isMissing($saveAs)), "input filename parse error");
+  $saveAs =~ s/$EXPECT_FILE_TYPE_RE//;
 
   my @jobQueue = ();
   if ($outputNumbered)
@@ -1012,6 +1019,7 @@ my @workList = processParams();
 
 foreach my $fSpec (@workList)
   {
+    tellUser('I', "Reading: $fSpec");
     open(my $source, '<:raw', $fSpec)
       or tellUser('F', 'error opening file in raw mode', $fSpec, $!);
 
@@ -1022,8 +1030,10 @@ foreach my $fSpec (@workList)
       }
 
     my $fileCnt = parseStackedJPEG($source, $fSpec);
-    print(STDERR "$fSpec -> $fileCnt files\n") if (not $opt{quietMode});
     close($source);
+
+    if ($opt{verboseMode})      { tellUser('I', " Output: $fileCnt files") }
+    elsif (not $opt{quietMode}) { print("$fSpec ($fileCnt files)\n")       }
   }
 
 __END__
@@ -1034,7 +1044,7 @@ __END__
 
 =head1 NAME
 
-mij-splitter -- split one Multi-Image Jpeg file into individual JPEG files
+mij-splitter -- split one Multi-Image JPEG file into individual JPEG files
 
 =head1 SYNOPSIS
 
@@ -1043,9 +1053,9 @@ B<mij-splitter> [options] I<file1.jpg> I<...>
 =head1 DESCRIPTION
 
 By default this utility extracts the left and right stereo pair images
-from either a Leia Image File (LIF) 3D image file or an MPO file.
-Schematically a LIF file, and the extracted L/R image pair, looks like
-this:
+from either a Leia Image File (LIF) or Multi Picture Object (MPO)
+file.  Schematically a LIF file, and the extracted L/R image pair,
+looks like this:
 
      my-lif-image.jpg                my-lif-image_L.jpg
    +--------------------+          +--------------------+
@@ -1074,12 +1084,50 @@ this:
    | short text block   |
    +--------------------+
 
-An MPO file has a similiar structure only it may contain any number of
+An MPO file has a similar structure only it may contain any number of
 JPEG images in sequence.  However, the most common use for the MPO
 format is for containing the left/right image pairs of a stereoscopic
 image produced by a digital 3D camera.  As such this utility will
 assume any MPO inputs have exactly two images and will emit a warning
 if that is not the case.
+
+=head2 Usage Notes
+
+A preflight check is done on all command line arguments before
+processing begins.  These checks include:
+
+=over 2
+
+=item -
+
+Confirm all specified input files exist.
+
+=item -
+
+Disallow non-file specifications like directory-only paths.
+
+=item -
+
+All files have expected C<.jpg> or C<.mpo> extension.  Use C<-all>
+option to override this restriction.
+
+=item -
+
+Do not process file if it does not begin with the expected
+'start-of-image' (SOI) marker of a normal JPEG image.  Use C<-all>
+option to override this restriction.
+
+=item -
+
+Reject filenames ending with C<_L> or C<_R> which look like our own
+output.  Use C<-all> option to override this restriction.
+
+=item -
+
+Reject very large input files (over 150 megabytes).  Use -force to
+override this restriction.
+
+=back
 
 =head1 OPTIONS
 
@@ -1091,10 +1139,9 @@ All option names may be abbreviated down to the first letter.
 
 Extract all detected JPEG images without reference to expected
 left/right pairs or a specific number of images.  Each image is
-extracted and named using sequential "nn-of-nn" numbering.  You may
-also use this option to force parsing a file that does not initially
-start out with the expected 'start-of-image' (SOI) marker of a normal
-JPEG image.
+extracted and named using sequential "nn-of-nn" numbering.  This
+option also ignores the input file extension, and also allows input
+files that do not immediately begin with a JPEG signature.
 
 =item B<-extra>
 
@@ -1102,8 +1149,9 @@ Use this option to save non-JPEG image data from the original file to
 a C<*_extra.bin> file.  Normally any non-JPEG information is quietly
 ignored and discarded.  If the L<hexdump(1)> utility is available on
 your system, using the C<-C> option is a convenient tool for examining
-the contents of this file.  The location of the extracted images will
-be illustrated with C<E<lt>IMGnE<gt>> strings, as illustrated here:
+the contents of this file.  The original location of the extracted
+images will be illustrated with C<E<lt>IMGnE<gt>> strings, as
+illustrated here:
 
  $ hexdump -C mypic_extra.bin
  00000000  3c 49 4d ... 00 00  |<IMG0>..........|
@@ -1125,13 +1173,7 @@ be illustrated with C<E<lt>IMGnE<gt>> strings, as illustrated here:
 
 =item B<-force>
 
-Ignore required input file extension type (.jpg or .mpo).  Also allows
-input of suspicious large input files.
-
-=item B<-whatif>
-
-Do a test run and report results without actually creating any output
-files.
+Use this option to force reading very large files.
 
 =item B<-verbose>
 
@@ -1162,7 +1204,11 @@ Display to STDOUT entire man page and exit.
 
 Note that -verbose and -quiet are mutually exclusive.
 
-=head1 EXAMPLE
+=head1 EXAMPLES
+
+=over 3
+
+=item 1.
 
 Given the command:
 
@@ -1174,6 +1220,15 @@ If the input files are valid LIF format, four output files are generated:
     this_R.jpg
     that_L.jpg
     that_R.jpg
+
+=item 2.
+
+Split all MPO files in current directory and save them in "Pairs"
+subdirectory.  If the subdirectory does not exist, create it.
+
+    $ mij-splitter -o=Pairs *.mpo
+
+=back
 
 =head1 SEE ALSO
 
