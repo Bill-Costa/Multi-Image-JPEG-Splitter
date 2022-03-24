@@ -56,19 +56,19 @@ Sorry there is no automated installer at this time.
 
 ## Background ##
 
-[Stereographic photography](https://en.wikipedia.org/wiki/Stereoscopy)
+[Stereoscopic photography](https://en.wikipedia.org/wiki/Stereoscopy)
 uses two or more images to capture the representation of a single
 three dimensional (3D) image.  There are a variety of organizational
-schemes that can be used to store a stereographic left/right image
+schemes that can be used to store a stereoscopic left/right image
 pair within a single image file.  Popular methods include
-concatinating the images together in a
+concatenating the images together in a
 [side-by-side](https://en.wikipedia.org/wiki/Stereoscopy#Side-by-side)
 format, or using a [color
 anaglyph](https://en.wikipedia.org/wiki/Stereoscopy#Color_anaglyph_systems)
 encoding.  When displayed, it is easy to identify such images as being
 special in some way.  And while it may be clear to the observer that
 there are multiple images being stored within the file, this composite
-has actually been encoded as a single standalone digital image.
+has actually been encoded as a single stand-alone digital image.
 
 > _**Note that this program is *not* designed for processing those
 > sorts of conventional 3D image files.**_
@@ -98,7 +98,7 @@ was written, this includes the [Red Hydrogen One
 smartphone](https://en.wikipedia.org/wiki/Red_Hydrogen_One) and [Leia
 Lume Pad tablet
 computer](https://www.cnet.com/tech/computing/lume-pad-brings-glasses-free-3d-back-again-on-an-android-tablet/).
-Both of these devices is equipped with a 3D camera.  Photos taken with
+Both of these devices are equipped with a 3D camera.  Photos taken with
 this camera are saved as a single JPEG file using the proprietary LIF
 file format to store the resulting left/right stereo image pair and
 corresponding depth maps.  Conventional JPEG viewing software will
@@ -123,19 +123,19 @@ are not extracted by default.
 This utility can also extract all of the individual images from the
 JPEG-based Multi-Picture format (MPO) while preserving any embedded
 thumbnail/preview images.  Unlike LIF files, MPO is a well established
-3D digital image format and is widely recognized by stereographic
+3D digital image format and is widely recognized by stereoscopic
 computer applications.  These apps, described below, are probably a
 better choice for manipulating MPO than this program.
 
-## Working with Digital Stareographic Images ###
+## Working with Digital Stereoscopic Images ###
 
-So, once you have a pair of left/right image files.  Now what?
+So, once you have a pair of left/right image files, now what?
 
-It seems like whatever format is being used for a 3D photo, you will need a different format 
-However be aware that that for 3D photographs, MPO is a widely
-recognized format with stereographic software like
+### Stereoscopic Photo Editors ###
 
-### Stereographic Photo Editors ###
+Specialized stereoscopic software will allow you to assemble, crop,
+and align the two images into a 3D image that is [comfortable to
+view](https://stereosite.com/taking-stereo-photos/stereo-window-basics/).
 
 - [StereoPhoto Maker](https://stereo.jpn.org/eng/stphmkr/)
   - [How to Use](https://stereoscopy.blog/2019/09/08/how-to-use-stereo-photo-maker-basic-tutorial/)
@@ -143,30 +143,33 @@ recognized format with stereographic software like
 - [StMani](https://sourceforge.net/projects/stmani3/)
 - [Using Photoshop for Stereoviews](https://stereoscopy.blog/2020/06/05/how-to-make-stereoviews-only-using-photoshop/)
 
-### Stereographic Photo Viewers ###
+### Stereoscopic Photo Viewers ###
+
+Stereoscopic photo viewers can be used to more easily watch 3D image
+slide-shows, or explore a collection of 3D images.
 
 - [sView](https://en.wikipedia.org/wiki/SView)
 - [S3D-Viewer](http://www.stereo-3d.net/)
 
 ## Program Bugs and Limitations ##
 
-- As a safety measure, we try to avoid parsing pathologically large
-  files which we currently define as any input that exceeds the byte
-  count equivalent of four uncompressed 8K images.  However the `-all`
-  option [puts a penny in the software
-  fusebox](https://www.schererelectric.com/blog/electrical/the-penny-in-the-fuse-box-and-other-diy-electrical-panel-nightmares/)
-  to ignore this limit.
+- Method for detecting JPEG segments may be overly simplistic.  (See below.)
+- We should also output composite 3D formats such as doing a lossless
+  side-by-side joining of the JPEG left/right images.
+- There is currently no option for recursively extracting all images
+  found within a directory tree.
+- Temp files may be left behind if program crashes.
 
 ## Programming Notes ##
 
 This program takes a very naive approach in that it doesn't try to
 understand the proprietary LIF format, nor even common JPEG formats
 for that matter, beyond that fact that complete JPEG images
-[are bracked by unique two byte tags](https://www.media.mit.edu/pia/Research/deepview/exif.html).
+[are bracketed by unique two byte tags](https://www.media.mit.edu/pia/Research/deepview/exif.html).
 These tags indicated the start-of-image (SOI) and end-of-image (EOI).
 In a LIF file, any data found between, or after these concatenated
-JPEGs is discarded or can be optionally saved to an auxillary file for
-later examination and study.
+JPEGs is discarded or can be optionally saved to an auxiliary file for
+further examination and study.
 
 To perform the parsing of the binary byte stream, the following
 [Finite-State Machine](https://en.wikipedia.org/wiki/Finite-state_machine)
@@ -175,11 +178,12 @@ single byte is read from the input stream.
 
 ![LIF Parser](docs/parser-FSM.png?raw=true)
 
-LIF Finite State Machine (FSM) Parser
+In the FSM illustrated above:
 
-"save" means write current image data byte(s) to the active image output file
-
-"echo" means optionally write any non-image data to an 'extra' file.
+- "other" means a byte that is not an expected JPEG image delimiter
+  tag character..
+- "save" means write current image data byte(s) to the active image output file
+- "echo" means optionally write any non-image data to an 'extra' file.
 
 Note that Q1 is the unique initial starting state.  Q1 and Q5 are the
 expected halting states.  In particular reaching the end of the input
@@ -234,6 +238,8 @@ can also be represented as the following state transition table.
 (Note: There are 7 columns and a set of row labels on the right hand side in
 the table above.)
 
+### Reading the State Table ###
+
 Find the current state at the top or the table; read down to find
 which condition matches the current input byte.  For example `IN:
 ! D8` means the current input byte is not the `0xD8` character.
@@ -248,15 +254,14 @@ statement](https://en.wikipedia.org/wiki/Switch_statement) with a
 branch defined for each state.  When a branch is taken, it can examine
 the current input byte to determine the action to be performed, and
 determine what needs to be the next state.  At any point in the input
-stream, the only information needed is the what is the current state,
+stream, the only information needed is knowing the current state,
 and what is the current input byte.  Using this approach, a FSM can be
 almost mechanically transcribed into code.
 
-The limitation of a FSM is revealed in the name itself -- finite.  ...
+### More About Finite State Machine Theory ###
 
-Fun fact, [regular expressions describe patterns which can be recognized by finite state machines](https://www.cs.drexel.edu/~kschmidt/CS360/Lectures/2.html).w
-
-https://neilmadden.blog/2019/02/24/why-you-really-can-parse-html-and-anything-else-with-regular-expressions/
+- Fun fact, [regular expressions describe patterns which can be recognized by finite state machines](https://www.cs.drexel.edu/~kschmidt/CS360/Lectures/2.html).
+- [Why you really can parse HTML \(and anything else\) with regular expressions](https://neilmadden.blog/2019/02/24/why-you-really-can-parse-html-and-anything-else-with-regular-expressions/).
 
 ## DISCLAIMER ##
 
