@@ -11,21 +11,21 @@ files.
 
 ## Usage ##
 
-`lif-splitter` is a command line application.
+`mij-splitter` is a command line application.
 
 `````shell
-$ lif-splitter [options] my-image.jpg [...]
+$ mij-splitter [options] my-image.jpg [...]
 `````
 
 The default operation extracts only the left/right stereoscopic image pair
 as ordinary JPEG files.
 
-![LIF to JPEG L/R Pairs](docs/lif-to-jpeg.png?raw=true)
+![LIF to JPEG L/R Pairs](docs/mij-to-jpeg.png?raw=true)
 
 To view a complete manual page, use the `-manpage` option.
 
 `````shell
-$ lif-splitter -manpage
+$ mij-splitter -manpage
 `````
 
 For a list of available options, use the `-help` option.
@@ -49,20 +49,45 @@ Perl can also be easily installed on Windows, macOS, and Linux by
 following this [step-by-step
 guide](https://www.perl.com/article/downloading-and-installing-perl-in-2021/).
 
-To install this utility, just copy the single file `lif-splitter` from
+To install this utility, just copy the single file `mij-splitter` from
 the project's `src` directory to [wherever you keep your
 scripts](https://shapeshed.com/using-custom-shell-scripts-on-osx-or-linux/).
 Sorry there is no automated installer at this time.
 
 ## Background ##
 
-.....file into two separate JPEG files; the left and right portions
-of a stereoscopic image pair.  Optionally it can also extract the two
-corresponding depth map images that are part of this proprietary
-format, along with other binary and text data found within the LIF
-file.  This utility can also be used to extract all of the individual
-JPEG inages stored in an
-file.
+[Stereographic photography](https://en.wikipedia.org/wiki/Stereoscopy)
+uses two or more images to capture the representation of a single
+three dimensional (3D) image.  There are a variety of organizational
+schemes that can be used to store a stereographic left/right image
+pair within a single image file.  Popular methods include
+concatinating the images together in a
+[side-by-side](https://en.wikipedia.org/wiki/Stereoscopy#Side-by-side)
+format, or using a [color
+anaglyph](https://en.wikipedia.org/wiki/Stereoscopy#Color_anaglyph_systems)
+encoding.  When displayed, it is easy to identify such images as being
+special in some way.  And while it may be clear to the observer that
+there are multiple images being stored within the file, this composite
+has actually been encoded as a single standalone digital image.
+
+> _**Note that this program is *not* designed for processing those
+> sorts of conventional 3D image files.**_
+
+As an alternative, there are at least two digital file formats that
+take a different approach.  Both the [3D Leia Image
+Format](https://docs.leialoft.com/developer/android-media-sdk/supported-media)
+(LIF) and [MPO
+format](https://en.wikipedia.org/wiki/JPEG#JPEG_Multi-Picture_Format)
+stack complete individual JPEG images, in sequence, within a single
+file.  When displayed using conventional JPEG viewing software, only
+the first (left) image is displayed.
+
+This utility can be used to extract the embedded stereo image pair
+into two separate left and right JPEG files.  Optionally, in the case
+of LIF files, it can also extract the two corresponding depth map
+images that are part of this proprietary format.
+
+### Leia Image Format ###
 
 The Leia Image Format (LIF) is a proprietary
 [stereoscopic](https://en.wikipedia.org/wiki/Stereoscopy) file format
@@ -93,24 +118,37 @@ conventional side-by-side format image with a `.jpg` extension.  For
 these formats the LIF format depth map images are not needed so they
 are not extracted by default.
 
-This utility can also extract all of the individual images from a JPEG
-Multi-Picture Format (MPO) while preserving any embedded thumbnail and
-preview images.  However MPO is a widely recognized format with
-stereographic software like [StereoPhoto
-Maker](https://stereo.jpn.org/eng/stphmkr/),
-[COSIMA](http://www.cosima-3d.de/),
-[StMani](https://sourceforge.net/projects/stmani3/), and other stereo
-photo processing programs.
+### Multi-Picture Format (MPO) ###
+
+This utility can also extract all of the individual images from the
+JPEG-based Multi-Picture format (MPO) while preserving any embedded
+thumbnail/preview images.  Unlike LIF files, MPO is a well established
+3D digital image format and is widely recognized by stereographic
+computer applications.  These apps, described below, are probably a
+better choice for manipulating MPO than this program.
+
+## Working with Digital Stareographic Images ###
+
+So, once you have a pair of left/right image files.  Now what?
+
+It seems like whatever format is being used for a 3D photo, you will need a different format 
+However be aware that that for 3D photographs, MPO is a widely
+recognized format with stereographic software like
+
+### Stereographic Photo Editors ###
+
+- [StereoPhoto Maker](https://stereo.jpn.org/eng/stphmkr/)
+  - [How to Use](https://stereoscopy.blog/2019/09/08/how-to-use-stereo-photo-maker-basic-tutorial/)
+- [COSIMA](http://www.cosima-3d.de/)
+- [StMani](https://sourceforge.net/projects/stmani3/)
+- [Using Photoshop for Stereoviews](https://stereoscopy.blog/2020/06/05/how-to-make-stereoviews-only-using-photoshop/)
+
+### Stereographic Photo Viewers ###
+
+- [sView](https://en.wikipedia.org/wiki/SView)
+- [S3D-Viewer](http://www.stereo-3d.net/)
 
 ## Program Bugs and Limitations ##
-
-- As currently written, this utility only works because at the time
-  this was written (Feb 2022) LIF files created by the RH1 and Lume
-  Pad do not contain
-  [thumbnail images](https://entropymine.wordpress.com/2018/07/01/jpeg-thumbnail-formats/).
-  Our simplistic parsing algorithm does not correctly handle a JPEG
-  image that itself contains any embedded JPEG images, i.e. a thumbnail
-  or preview image.  See the **Programming Notes** below for more details.
 
 - As a safety measure, we try to avoid parsing pathologically large
   files which we currently define as any input that exceeds the byte
@@ -141,7 +179,7 @@ LIF Finite State Machine (FSM) Parser
 
 "save" means write current image data byte(s) to the active image output file
 
-"echo" means optionally write any non-image data to a 'discard' file.
+"echo" means optionally write any non-image data to an 'extra' file.
 
 Note that Q1 is the unique initial starting state.  Q1 and Q5 are the
 expected halting states.  In particular reaching the end of the input
@@ -220,3 +258,12 @@ Fun fact, [regular expressions describe patterns which can be recognized by fini
 
 https://neilmadden.blog/2019/02/24/why-you-really-can-parse-html-and-anything-else-with-regular-expressions/
 
+## DISCLAIMER ##
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
