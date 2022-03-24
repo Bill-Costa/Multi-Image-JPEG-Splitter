@@ -810,8 +810,8 @@ sub parseStackedJPEG ( $ $ )
 
   if ($segCnt == 0)
     {
-      tellUser('W', "empty input file?", $fSpec);
-      return(0);                                                # CASE 0: empty
+      tellUser('W', "no JPEG image markers found", $fSpec);
+      return(0);
     }
 
   #-------------------------------------+
@@ -850,7 +850,7 @@ sub parseStackedJPEG ( $ $ )
         }
 
       tellUser('W', $msg, $fSpec);
-      return(0);                                    # CASE 1: solo output file
+      return(0);
     }
 
   #-------------------------------------+
