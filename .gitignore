@@ -5,6 +5,7 @@
 /MYMETA.*
 /fodder
 /Versions
+/docs/Versions/
 .DS_Store
 *.o
 *.pm.tdy
