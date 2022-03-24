@@ -1,8 +1,5 @@
 # Splitting Stacked JPEG Images from Leia Image Format (LIF) File #
 
-**NOTE:** This technique of splitting does not appear to work for MPO
-files.
-
 **PRO-TIP:** Save output from `hexdump -C` to a file for easy
 looky-see of JPEG file structure.
 
