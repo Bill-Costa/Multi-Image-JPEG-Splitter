@@ -6,6 +6,7 @@
 /fodder
 /Versions
 /docs/Versions/
+*.webloc
 .DS_Store
 *.o
 *.pm.tdy
