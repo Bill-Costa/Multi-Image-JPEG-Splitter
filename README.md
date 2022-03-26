@@ -118,6 +118,12 @@ conventional side-by-side format image with a `.jpg` extension.  For
 these formats the LIF format depth map images are not needed so they
 are not extracted by default.
 
+Finally note that [LeiaPlayer 3.0](https://forums.leialoft.com/t/leiaplayer-3-0-now-available/1402)
+app, which runs on the Lume Pad, has a "SBS Export" option for
+extracting the left/right pair as a single side-by-side format JPEG
+image.  From there, one of the stereoscopic editors, listed below,
+could extract individual left/right images if needed.
+
 ### Multi-Picture Format (MPO) ###
 
 This utility can also extract all of the individual images from the
@@ -146,10 +152,13 @@ view](https://stereosite.com/taking-stereo-photos/stereo-window-basics/).
 ### Stereoscopic Photo Viewers ###
 
 Stereoscopic photo viewers can be used to more easily watch 3D image
-slide-shows, or explore a collection of 3D images.
+slide-shows, or explore a collection of 3D images.  Some viewers can
+also be used to do simple conversions from one common 3D format to
+another.
 
 - [sView](https://en.wikipedia.org/wiki/SView)
 - [S3D-Viewer](http://www.stereo-3d.net/)
+- [LeiaPlayer 3.0 for the Lume Pad](https://forums.leialoft.com/t/leiaplayer-3-0-now-available/1402); also extracts side-by-side (SBS) format images from LIF files.
 
 ## Program Bugs and Limitations ##
 
