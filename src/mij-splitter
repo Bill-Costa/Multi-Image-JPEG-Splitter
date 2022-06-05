@@ -24,11 +24,13 @@
 
 use warnings;			# Warning me when I do something stupid.
 use strict;			# Keep things squeaky clean.
+use English qw'-no_match_vars'; # Avoid cryptic system variable names.
 use Data::Dumper;		# Easy data structure debugging.
    $Data::Dumper::Terse = 1;	# Suppress the "$VAR1" string; limit padding.
 use Getopt::Long;		# Parse our command line please.
 use File::Basename;		# For parsing file names.
 use File::Spec::Functions;	# For building file specs portably.
+use File::DosGlob;		# Expand wildcards as needed on DOS systems.
 use Pod::Usage;			# Easy usage text, help, and man page.
 #use Text::Abbrev;		# Allow keyword abbreviation.
 use Fcntl qw(SEEK_SET);         # Used in seek() function for moving cursor.
@@ -397,8 +399,9 @@ sub processParams ( )
 #
 # Postcondition: Removes all remaining parameters from ARGV.  All
 #		 files identified in @files are validated or we return
-#		 a usage error and throw an exception.
-
+#		 a usage error and throw an exception.  If we are
+#		 running on a Windows system, expand any wildcards to
+#		 match existing files.
 
 {
   tellUser('U', "one or more filenames expected") if (scalar(@ARGV) < 1);
@@ -408,6 +411,28 @@ sub processParams ( )
   my $ERR_LIM = 5;
   my $argNum  = 1;
   my $argCnt  = scalar(@ARGV);
+
+  #---------------------------------------------+
+  # If this is a MS Windows system, do our own	|
+  # command line expansion of ambigous files.	|
+  #---------------------------------------------+
+
+  if ($OSNAME eq 'MSWin32')
+    {
+      tellUser('D1', "performing DOS command line expansion");
+      my $beforeCnt = scalar(@ARGV);
+      my @newArgs = map(File::DosGlob::glob, @ARGV);
+      if (scalar(@newArgs) > 0)
+        {
+          @ARGV = @newArgs;
+          tellUser('D1', "original $beforeCnt args expanded to", @ARGV)
+            if (scalar(@ARGV) > $beforeCnt);
+        }
+    }
+
+  #---------------------------------------------+
+  # Check each arg value for sanity.		|
+  #---------------------------------------------+
 
   foreach my $fSpec (@ARGV)
     {
