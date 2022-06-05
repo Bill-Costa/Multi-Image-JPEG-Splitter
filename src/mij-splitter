@@ -419,14 +419,14 @@ sub processParams ( )
 
       if (not -e $fSpec)
         {
-          tellUser("file lookup error", $fSpec, $!);
+          tellUser('U', "file lookup error", $fSpec, $!);
           $errCnt++;
-          next;;
+          next;
         }
 
       if (-d $fSpec)
         {
-          tellUser("expect image file, not a directory", $fSpec);
+          tellUser('U', "expect image file, not a directory", $fSpec);
           $errCnt++;
           next;
         }
@@ -1143,6 +1143,12 @@ extracted and named using sequential "nn-of-nn" numbering.  This
 option also ignores the input file extension, and also allows input
 files that do not immediately begin with a JPEG signature.
 
+=item B<-output=dirpath>
+
+Save extracted files to specified directory path.  If the directory
+does not exist it will be created.  The default is to extract the new
+files into the user's current working directory.
+
 =item B<-extra>
 
 Use this option to save non-JPEG image data from the original file to
@@ -1250,6 +1256,16 @@ subdirectory.  If the subdirectory does not exist, create it.
 
 =head1 BUGS & LIMITATIONS
 
+=over 2
+
+=item -
+
+When using the C<-output> option, a new directory will be created as
+needed, even if it turns out we have no actionable input or no
+resulting output.
+
+=item -
+
 We use a very naive understanding of how a LIF or MPO file is
 formatted.  The assumption is that each JPEG segment has a specific
 two-byte character pair identifying the start and end of each image.
@@ -1259,8 +1275,12 @@ side, by using the C<-all> option, this utility could be used to
 extract JPEG images from just about any file that has two or more JPEG
 images that have been simply concatenated together.
 
+=item -
+
 Any thumbnail images embedded within a JPEG segment are not extracted
 to their own file, but remain encoded within the parent image.
+
+=back
 
 =head1 FUTURES
 
