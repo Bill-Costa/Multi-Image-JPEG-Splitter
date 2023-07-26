@@ -39,3 +39,7 @@ inc/
 /MANIFEST.bak
 /pm_to_blib
 /*.zip
+
+# My own private support files.
+
+src/mij-splitter.20*

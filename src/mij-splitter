@@ -7,7 +7,7 @@
 #	  Help:	mij-splitter -h
 #     Man Page:	mij-splitter -m
 #       Author:	Bill.Costa@alumni.unh.edu
-#      Version: v1.0-20220316
+#      Version: v1.0-20230726
 # Project Page:	https://github.com/Bill-Costa/Multi-Image-JPEG-Splitter
 #
 #      THIS SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
@@ -82,29 +82,6 @@ sub isMissing ( $ )
 {
   if (not defined($_[0]) or $_[0] =~ m/^\s*$/s) { return(1) }
   else                                          { return(0) }
-}
-
-#------------------------------------------------------------------------------
-
-sub trimStr ( $ )
-
-#      Abstract: Remove leading and trailing whitespace.
-#
-#    Parameters: $str -- simple char string (no embedded carriage control)
-#
-#       Returns: $new -- the trimmed string value
-#
-#  Precondition: None.
-#
-# Postcondition: $str is returned with  leading and trailing blanks
-#		 removed.  If the string is all whitespace, or undefined,
-#		 we return an empty string.
-
-{
-  my $str = shift(@_);
-  return('') if (not defined($str));
-  $str =~ s/^\s+|\s+$//g;
-  return($str);
 }
 
 #------------------------------------------------------------------------------
@@ -404,7 +381,8 @@ sub processParams ( )
 #		 match existing files.
 
 {
-  tellUser('U', "one or more filenames expected") if (scalar(@ARGV) < 1);
+  tellUser('U', "one or more filenames expected", "try -h for help")
+    if (scalar(@ARGV) < 1);
 
   my @files   = ();
   my $errCnt  = 0;
@@ -895,11 +873,16 @@ sub parseStackedJPEG ( $ $ )
         }
       elsif ($type eq 'JPG')
         {
-          if ($imgCnt == 4)
+          if ($imgCnt == 4)		# Assume LIF v1 format.
             {
               $leftIndex = 0;
               $rghtIndex = 2;
             }
+	  elsif ($imgCnt == 2)		# Assume LIF v2 format or L/R stack.
+	    {
+	      $leftIndex = 0;
+	      $rghtIndex = 1;
+	    }
           else
             {
               $outputNumbered = 1;
@@ -923,7 +906,7 @@ sub parseStackedJPEG ( $ $ )
               $outputNumbered = 1;
               tellUser(
                         'W',
-                        "cannot assume input in LIF format",
+                        "cannot assume input in MPO 3D format",
                         $fSpec,
                         "created $imgCnt sequentially numbered image files"
                       );
@@ -1079,8 +1062,8 @@ B<mij-splitter> [options] I<file1.jpg> I<...>
 
 By default this utility extracts the left and right stereo pair images
 from either a Leia Image File (LIF) or Multi Picture Object (MPO)
-file.  Schematically a LIF file, and the extracted L/R image pair,
-looks like this:
+file.  Schematically the original version of a LIF file, and the
+extracted L/R image pair, looks like this:
 
      my-lif-image.jpg                my-lif-image_L.jpg
    +--------------------+          +--------------------+
@@ -1108,6 +1091,9 @@ looks like this:
    |--------------------|
    | short text block   |
    +--------------------+
+
+The second version of the LIF format omits the image maps.  This
+program supports both versions.
 
 An MPO file has a similar structure only it may contain any number of
 JPEG images in sequence.  However, the most common use for the MPO

@@ -108,8 +108,8 @@ software, all of the images are used for displaying the 3D image using
 their lightfield hardware technology.
 
 The fact that the LIF format contains a pair of conventional JPEG
-images for the left and right views makes it is possible to extract
-these as two independent JPEG image files.  This would he first step
+images for the left and right views means it is possible to extract
+these as two independent JPEG image files.  This would the first step
 in converting such pairs into an alternate stereoscopic file format
 such as
 [MPO](https://en.wikipedia.org/wiki/JPEG#JPEG_Multi-Picture_Format) or
@@ -131,7 +131,7 @@ JPEG-based Multi-Picture format (MPO) while preserving any embedded
 thumbnail/preview images.  Unlike LIF files, MPO is a well established
 3D digital image format and is widely recognized by stereoscopic
 computer applications.  These apps, described below, are probably a
-better choice for manipulating MPO than this program.
+better choice for manipulating MPO files than this program.
 
 ## Working with Digital Stereoscopic Images ###
 
@@ -167,7 +167,7 @@ another.
   side-by-side joining of the JPEG left/right images.
 - There is currently no option for recursively extracting all images
   found within a directory tree.
-- Temp files may be left behind if program crashes.
+- Temp files may be left behind if this utility crashes.
 
 ## Programming Notes ##
 

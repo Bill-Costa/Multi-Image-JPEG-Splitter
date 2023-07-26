@@ -27,10 +27,12 @@ _ ../samples/03-cat-stack.jpg
 _ created 5 sequentially numbered image files
 ../samples/03-cat-stack.jpg (5 files)
 ../samples/05-chrome-engine_RH1.jpg (2 files)
-../samples/06-oregano_LumePad.jpg (2 files)
-../samples/07-valentines_LumePad.jpg (2 files)
+../samples/06-oregano_LumePad-v1.jpg (2 files)
+../samples/07-valentines_LumePad-v1.jpg (2 files)
+../samples/08-purple-bike_LumePad-v2.jpg (2 files)
+../samples/09-flower-pots_LumePad-v2.jpg (2 files)
 ../samples/04-monticello.mpo (2 files)
-DevLab:test wfc$ ls -1
+$ ls -1
 03-cat-stack_1-of-5.jpg
 03-cat-stack_2-of-5.jpg
 03-cat-stack_3-of-5.jpg
@@ -40,14 +42,19 @@ DevLab:test wfc$ ls -1
 04-monticello_R.jpg
 05-chrome-engine_RH1_L.jpg
 05-chrome-engine_RH1_R.jpg
-06-oregano_LumePad_L.jpg
-06-oregano_LumePad_R.jpg
-07-valentines_LumePad_L.jpg
-07-valentines_LumePad_R.jpg
+06-oregano_LumePad-v1_L.jpg
+06-oregano_LumePad-v1_R.jpg
+07-valentines_LumePad-v1_L.jpg
+07-valentines_LumePad-v1_R.jpg
+08-purple-bike_LumePad-v2_L.jpg
+08-purple-bike_LumePad-v2_R.jpg
+09-flower-pots_LumePad-v2_L.jpg
+09-flower-pots_LumePad-v2_R.jpg
 README.md
 $ rm *.jpg
 $
 ````
+
 ## Force and Accept Anything ##
 
 ````text
@@ -64,12 +71,14 @@ _ ../samples/02-super-mario.jps
 ../samples/03-cat-stack.jpg (5 files)
 ../samples/04-monticello.mpo (2 files)
 ../samples/05-chrome-engine_RH1.jpg (4 files)
-../samples/06-oregano_LumePad.jpg (4 files)
-../samples/07-valentines_LumePad.jpg (4 files)
+../samples/06-oregano_LumePad-v1.jpg (4 files)
+../samples/07-valentines_LumePad-v1.jpg (4 files)
+../samples/08-purple-bike_LumePad-v2.jpg (2 files)
+../samples/09-flower-pots_LumePad-v2.jpg (2 files)
 ? mij-splitter: no JPEG image markers found
 _ ../samples/README.md
 ../samples/README.md (0 files)
-DevLab:test wfc$ ls -1
+$ ls -1
 03-cat-stack_1-of-5.jpg
 03-cat-stack_2-of-5.jpg
 03-cat-stack_3-of-5.jpg
@@ -81,15 +90,21 @@ DevLab:test wfc$ ls -1
 05-chrome-engine_RH1_2-of-4.jpg
 05-chrome-engine_RH1_3-of-4.jpg
 05-chrome-engine_RH1_4-of-4.jpg
-06-oregano_LumePad_1-of-4.jpg
-06-oregano_LumePad_2-of-4.jpg
-06-oregano_LumePad_3-of-4.jpg
-06-oregano_LumePad_4-of-4.jpg
-07-valentines_LumePad_1-of-4.jpg
-07-valentines_LumePad_2-of-4.jpg
-07-valentines_LumePad_3-of-4.jpg
-07-valentines_LumePad_4-of-4.jpg
+06-oregano_LumePad-v1_1-of-4.jpg
+06-oregano_LumePad-v1_2-of-4.jpg
+06-oregano_LumePad-v1_3-of-4.jpg
+06-oregano_LumePad-v1_4-of-4.jpg
+07-valentines_LumePad-v1_1-of-4.jpg
+07-valentines_LumePad-v1_2-of-4.jpg
+07-valentines_LumePad-v1_3-of-4.jpg
+07-valentines_LumePad-v1_4-of-4.jpg
+08-purple-bike_LumePad-v2_1-of-2.jpg
+08-purple-bike_LumePad-v2_2-of-2.jpg
+09-flower-pots_LumePad-v2_1-of-2.jpg
+09-flower-pots_LumePad-v2_2-of-2.jpg
 README.md
 $ rm *.jpg
 $
-```
+````
+
+

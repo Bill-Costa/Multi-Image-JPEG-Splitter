@@ -17,6 +17,12 @@ Image File                  | Test    | Notes
 `04-monticello.mpo`         | accept  | 3D image captured w/ Fujifilm W3 camera
 `05-chrome-engine_RH1.jpg`  | accept  | 3D image from Red Hydrogen One phone
 `06-oregano_LumePad.jpg`    | accept  | 3D image from Leia Luma Pad tablet
-`07-valentines_LumePad.jpg` | accept  | 3D image frmo Leia Luma Pad tablet
+`07-valentines_LumePad.jpg` | accept  | 3D image from Leia Luma Pad tablet
+`08-purple-bike_LumePad-v2.jpg` | accept | 3D image from V2 Leia Luma Pad
+`09-flower-pots_LumePad-v2.jpg` | accept | 3D image from v2 Leia Luma Pad
 
-<!-- 16-MAR-2022 BC -->
+Thanks to **David C. LeDoux** for images 08 & 09 which were created by
+version 2 of the Leia Luma Pad.  Apparently the new Leia file format
+no longer includes depthmap images.
+
+<!-- 26-JUL-2023 BC -->
