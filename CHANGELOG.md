@@ -16,4 +16,14 @@
 - Added support for version 2 LIF files; they no longer contain depth
   map images.
 
+[00.01.03] - 2023-07-29
+
+- Removed dependancy on
+  [autovivification](https://metacpan.org/pod/autovivification) which
+  is not core, and in this particular script, is not actually needed.
+
+- Added set of Leia demonstration 3D images which include some we
+  cannot successfully parse.  See `samples-extended/README.md` for
+  more details.
+
 [EOF: CHANGELOG.md]
