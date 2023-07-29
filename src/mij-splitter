@@ -34,7 +34,7 @@ use File::DosGlob;		# Expand wildcards as needed on DOS systems.
 use Pod::Usage;			# Easy usage text, help, and man page.
 #use Text::Abbrev;		# Allow keyword abbreviation.
 use Fcntl qw(SEEK_SET);         # Used in seek() function for moving cursor.
-no autovivification;		# Allow hash key testing without auto creation.
+#no autovivification;		# Allow hash key testing without auto creation.
 				#--[ Global Vars ]-----------------------------
 my $ownName = (fileparse	# Get our own name, that is, how we were
                 (		#   invoked, minus pathname and suffix.
@@ -1268,6 +1268,14 @@ subdirectory.  If the subdirectory does not exist, create it.
 =head1 BUGS & LIMITATIONS
 
 =over 2
+
+=item -
+
+This utility cannot successfully split some of the demo files provided
+by Leia with their 3D tablets.  It appears that these images may use a
+yet another format then the one described here.  However, so far 3D
+photos created using either the Lume Pad 1 and 2 appear to be parsable
+by this utility.
 
 =item -
 
